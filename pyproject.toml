@@ -29,12 +29,17 @@ dev = [
     "quarto-cli>=1.10.18",
 ]
 
+[project.scripts]
+sumakit = "sumakit.report.cli:main"
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/sumakit"]
+# Las extensiones de Quarto viajan con el paquete, no con un repositorio.
+artifacts = ["src/sumakit/report/_extensions/**"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
