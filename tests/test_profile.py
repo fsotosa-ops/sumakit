@@ -123,3 +123,25 @@ def test_las_funciones_siguen_devolviendo_dataframes(df):
     """El estilo es una capa aparte: no debe contaminar el valor de retorno."""
     assert isinstance(profile.overview(df), pd.DataFrame)
     assert isinstance(profile.alerts(df), pd.DataFrame)
+
+
+# --- formato de flotantes ---------------------------------------------------
+
+def test_formato_adaptativo_no_usa_notacion_cientifica():
+    from sumakit.nb import adaptive_float
+    assert adaptive_float(1234567.0) == "1,234,567"
+    assert adaptive_float(45678.9) == "45,679"
+
+
+def test_formato_adaptativo_conserva_las_proporciones_chicas():
+    from sumakit.nb import adaptive_float
+    assert adaptive_float(0.000123) == "0.000123"
+    assert adaptive_float(0.4567) == "0.4567"
+
+
+def test_formato_adaptativo_casos_limite():
+    import numpy as np
+    from sumakit.nb import adaptive_float
+    assert adaptive_float(0.0) == "0"
+    assert adaptive_float(12.5) == "12.50"
+    assert adaptive_float(float("nan")) == "nan"
