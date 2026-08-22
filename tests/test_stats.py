@@ -61,8 +61,25 @@ def test_target_report_ordena_por_fuerza(df):
 
 
 def test_target_report_incluye_informacion_mutua(df):
+    """La información mutua es opcional: depende de scikit-learn."""
+    pytest.importorskip("sklearn")
     out = stats.target_report(df, "objetivo")
-    assert "mutual_info" in out.columns, "sklearn instalado: debe calcularla"
+    assert "mutual_info" in out.columns
+
+
+def test_target_report_funciona_sin_sklearn(df, monkeypatch):
+    """Sin scikit-learn debe seguir dando la correlación, no reventar."""
+    import builtins
+    real = builtins.__import__
+
+    def sin_sklearn(nombre, *a, **k):
+        if nombre.startswith("sklearn"):
+            raise ImportError("simulado")
+        return real(nombre, *a, **k)
+
+    monkeypatch.setattr(builtins, "__import__", sin_sklearn)
+    out = stats.target_report(df, "objetivo")
+    assert "corr" in out.columns and "mutual_info" not in out.columns
 
 
 def test_target_report_objetivo_ausente(df):

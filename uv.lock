@@ -3540,6 +3540,8 @@ dev = [
     { name = "pytest" },
     { name = "pyyaml" },
     { name = "quarto-cli" },
+    { name = "scikit-learn", version = "1.7.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
+    { name = "scikit-learn", version = "1.9.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
 ]
 
 [package.metadata]
@@ -3564,6 +3566,7 @@ dev = [
     { name = "pytest", specifier = ">=8.0" },
     { name = "pyyaml", specifier = ">=6.0.3" },
     { name = "quarto-cli", specifier = ">=1.10.18" },
+    { name = "scikit-learn", specifier = ">=1.7.2" },
 ]
 
 [[package]]

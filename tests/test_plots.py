@@ -109,6 +109,7 @@ def test_pairs_respeta_el_limite_de_tres_series(df):
 
 
 def test_scaling_comparison_acepta_ndarray(df):
+    pytest.importorskip("sklearn")
     from sklearn.preprocessing import StandardScaler
     feats = ["normal", "sesgada"]
     escalado = StandardScaler().fit_transform(df[feats])
