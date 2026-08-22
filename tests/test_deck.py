@@ -187,3 +187,44 @@ def test_la_figura_conserva_su_proporcion(figura):
     img = next(sh for sh in d.finding(HALLAZGO, image=figura).shapes
                if sh.shape_type == 13)
     assert abs(img.width / img.height - proporcion) < 0.01
+
+
+# --- lo que se tomó del deck de referencia ---------------------------------
+
+def test_el_titulo_resalta_lo_marcado_con_asteriscos():
+    """La segunda mitad en otro color dirige la lectura sin agregar elementos."""
+    d = Deck("d")
+    s = d.finding("Más del 40% son cero, lo que **bloquea el log-ratio**")
+    caja = next(sh for sh in s.shapes
+                if sh.has_text_frame and "cero" in sh.text_frame.text)
+    runs = caja.text_frame.paragraphs[0].runs
+    assert len(runs) == 2
+    assert runs[0].font.color.rgb == d._tinta
+    assert runs[1].font.color.rgb == d._acento and runs[1].font.bold
+
+
+def test_los_asteriscos_no_cuentan_como_palabras():
+    with pytest.raises(TituloNoAccionable):
+        Deck("d").finding("**Resultados**")
+
+
+def test_la_lamina_hero_pone_el_numero_en_grande():
+    d = Deck("d")
+    s = d.hero("16.705", "clientes con una sola transacción", kicker="Hallazgos")
+    tamaños = {r.font.size.pt for sh in s.shapes if sh.has_text_frame
+               for p in sh.text_frame.paragraphs for r in p.runs}
+    assert max(tamaños) >= 60, "el número héroe debe dominar la lámina"
+
+
+def test_el_hero_usa_el_acento_para_la_cifra():
+    d = Deck("d")
+    s = d.hero("42%", "de la cartera")
+    caja = next(sh for sh in s.shapes if sh.has_text_frame and "42%" in sh.text_frame.text)
+    assert caja.text_frame.paragraphs[0].runs[0].font.color.rgb == d._acento
+
+
+def test_el_tema_oscuro_cambia_el_fondo():
+    from sumakit import theme
+    claro, oscuro = Deck("d", palette=theme.LIGHT), Deck("d", palette=theme.DARK)
+    assert claro._fondo != oscuro._fondo
+    assert oscuro.es_oscuro and not claro.es_oscuro

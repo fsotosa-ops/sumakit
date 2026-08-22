@@ -108,6 +108,30 @@ class Deck:
         fondo.fore_color.rgb = self._fondo
         return s
 
+    def _texto_realzado(self, s, x, y, w, h, texto, *, size, color=None,
+                        realce=None, espaciado=1.2):
+        """Texto donde la porción entre **asteriscos** va en el color de acento.
+
+        Es el recurso del deck de referencia: la segunda mitad del título en
+        otro color dirige la lectura sin agregar un solo elemento a la lámina.
+        """
+        caja = s.shapes.add_textbox(Inches(x), Inches(y), Inches(w), Inches(h))
+        tf = caja.text_frame
+        tf.word_wrap = True
+        p = tf.paragraphs[0]
+        p.line_spacing = espaciado
+        for i, trozo in enumerate(texto.split("**")):
+            if not trozo:
+                continue
+            run = p.add_run()
+            run.text = trozo
+            run.font.size = Pt(size)
+            run.font.name = _FUENTE
+            destacado = i % 2 == 1
+            run.font.bold = destacado
+            run.font.color.rgb = (realce or self._acento) if destacado else (color or self._tinta)
+        return caja
+
     def _texto(self, s, x, y, w, h, texto, *, size=14, color=None, bold=False,
                align=PP_ALIGN.LEFT, anchor=MSO_ANCHOR.TOP, espaciado=1.15):
         caja = s.shapes.add_textbox(Inches(x), Inches(y), Inches(w), Inches(h))
@@ -144,13 +168,13 @@ class Deck:
         if kicker:
             self._texto(s, _MARGEN, _KICKER_Y, _ANCHO_UTIL, _KICKER_H,
                         kicker, size=11, color=self._suave)
-        self._texto(s, _MARGEN, _TITULO_Y, _ANCHO_UTIL, _TITULO_H,
-                    titulo, size=18, espaciado=1.2)
+        self._texto_realzado(s, _MARGEN, _TITULO_Y, _ANCHO_UTIL, _TITULO_H,
+                             titulo, size=18)
 
     def _validar_titulo(self, titulo: str) -> None:
         if not self.strict:
             return
-        if len(titulo.split()) < _MIN_PALABRAS_TITULO:
+        if len(titulo.replace("**", " ").split()) < _MIN_PALABRAS_TITULO:
             raise TituloNoAccionable(
                 f"«{titulo}» parece una etiqueta, no un hallazgo. Un título de "
                 "acción afirma la conclusión en una frase completa: no "
@@ -165,8 +189,8 @@ class Deck:
         s = self._lamina()
         self._banda(s, 0, 0.15)
         self._banda(s, _ALTO - 0.55, 0.55)
-        self._texto(s, _MARGEN, 3.1, _ANCHO_UTIL * 0.72, 1.4, self.title,
-                    size=30, espaciado=1.2)
+        self._texto_realzado(s, _MARGEN, 3.1, _ANCHO_UTIL * 0.72, 1.4,
+                             self.title, size=30)
         if self.subtitle:
             self._texto(s, _MARGEN, 4.35, _ANCHO_UTIL * 0.72, 0.5, self.subtitle,
                         size=14, color=self._suave)
@@ -365,6 +389,29 @@ class Deck:
         self._pie(s)
         return s
 
+    def hero(self, numero: str, etiqueta: str, *, kicker: str = "",
+             contexto: str = "", image: str | Path | None = None):
+        """Una cifra a tamaño grande, con su etiqueta y su contexto.
+
+        Cuando el mensaje es un solo número, un gráfico lo entierra. La forma
+        correcta es el número mismo, tan grande que no admita discusión.
+        """
+        s = self._lamina()
+        if kicker:
+            self._texto(s, _MARGEN, _KICKER_Y, _ANCHO_UTIL, _KICKER_H,
+                        kicker, size=11, color=self._suave)
+        ancho = _ANCHO_UTIL * (0.45 if image else 1.0)
+        self._texto(s, _MARGEN, 2.3, ancho, 1.5, numero,
+                    size=66, bold=True, color=self._acento)
+        self._texto(s, _MARGEN, 3.75, ancho, 0.6, etiqueta, size=20)
+        if contexto:
+            self._texto(s, _MARGEN, 4.45, ancho, 1.2, contexto,
+                        size=13, color=self._suave)
+        if image:
+            self._imagen(s, image, fraccion=0.5)
+        self._pie(s)
+        return s
+
     def closing(self, text: str = ""):
         s = self._lamina()
         self._banda(s, 0, 0.15)
@@ -383,6 +430,11 @@ class Deck:
 
     def __len__(self) -> int:
         return len(self.prs.slides)
+
+    @property
+    def es_oscuro(self) -> bool:
+        """El tema oscuro cambia qué color contrasta dentro de las bandas."""
+        return self.palette.name.endswith("dark")
 
     def __repr__(self) -> str:
         return f"Deck({self.title!r}, {len(self)} láminas)"
