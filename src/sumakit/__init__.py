@@ -11,12 +11,12 @@ Las funciones de `profile` y `stats` devuelven DataFrames; las de `plots`
 devuelven `Figure`. Nada dibuja por su cuenta ni muta estado global.
 """
 
-from . import interactive, nb, plots, profile, stats, theme
+from . import deck, interactive, nb, plots, profile, stats, theme
 from .exploration import Exploration, explore
 
 __version__ = "0.1.0"
 __all__ = [
     "explore", "Exploration",
-    "interactive", "nb", "plots", "profile", "stats", "theme",
+    "deck", "interactive", "nb", "plots", "profile", "stats", "theme",
     "__version__",
 ]
