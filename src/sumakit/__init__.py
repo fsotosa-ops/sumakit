@@ -12,6 +12,11 @@ devuelven `Figure`. Nada dibuja por su cuenta ni muta estado global.
 """
 
 from . import nb, plots, profile, stats, theme
+from .exploration import Exploration, explore
 
 __version__ = "0.1.0"
-__all__ = ["nb", "plots", "profile", "stats", "theme", "__version__"]
+__all__ = [
+    "explore", "Exploration",
+    "nb", "plots", "profile", "stats", "theme",
+    "__version__",
+]

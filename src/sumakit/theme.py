@@ -80,6 +80,8 @@ class Palette:
             "axes.spines.right": False,
             "axes.grid": True,
             "axes.grid.axis": "y",
+            # La grilla es referencia, no dato: siempre detrás de las marcas.
+            "axes.axisbelow": True,
             "axes.prop_cycle": mpl.cycler(color=list(self.categorical)),
             "grid.color": self.grid,
             "grid.linewidth": 0.6,

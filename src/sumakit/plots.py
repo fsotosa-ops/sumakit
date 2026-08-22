@@ -26,6 +26,7 @@ from . import theme
 from .profile import missing as _missing
 
 __all__ = [
+    "ranking",
     "distributions",
     "boxes",
     "correlation_heatmap",
@@ -350,3 +351,41 @@ def pairs(
         grid.figure.suptitle(title, x=0.01, ha="left", fontsize=13)
     grid.figure.tight_layout()
     return grid.figure
+
+
+def ranking(
+    valores: pd.Series,
+    *,
+    title: str = "",
+    xlabel: str = "",
+    top: int | None = 15,
+    highlight: float | None = None,
+) -> Figure:
+    """Barras horizontales ordenadas de mayor a menor.
+
+    La forma correcta cuando comparas una magnitud entre categorías con
+    nombres largos: horizontal deja leer las etiquetas sin rotarlas, y el
+    orden hace el trabajo que un gráfico de torta le deja al lector.
+
+    `highlight` dibuja una línea de referencia (un umbral, un promedio).
+    """
+    serie = valores.dropna().sort_values(ascending=False)
+    if serie.empty:
+        return _empty_figure("Sin valores que ordenar")
+    if top is not None:
+        serie = serie.head(top)
+    serie = serie.iloc[::-1]  # matplotlib dibuja de abajo hacia arriba
+
+    color = theme.categorical(1)[0]
+    alto = max(2.2, 0.32 * len(serie) + 1.2)
+    fig, ax = plt.subplots(figsize=(7.5, alto))
+    ax.barh(serie.index.astype(str), serie.to_numpy(), color=color, height=0.65)
+    if highlight is not None:
+        ax.axvline(highlight, color=theme.active().text_secondary,
+                   linewidth=1, linestyle="--", zorder=0)
+    ax.set_xlabel(xlabel)
+    ax.set_title(title)
+    ax.grid(axis="y", visible=False)
+    ax.grid(axis="x", visible=True)
+    fig.tight_layout()
+    return fig
