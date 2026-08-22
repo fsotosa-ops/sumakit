@@ -49,22 +49,38 @@ class Exploration:
         b64 = base64.b64encode(buf.getvalue()).decode()
         return f'<img src="data:image/png;base64,{b64}" style="max-width:100%;height:auto">'
 
-    def _repr_html_(self) -> str:
-        """Jupyter llama esto solo. No hay `plt.show()` ni efectos globales."""
+    def _tablas_html(self) -> str:
         partes = ["<h3 style='margin:0.6em 0 0.3em'>Qué revisar</h3>"]
         if self.alerts.empty:
             partes.append("<p>Sin hallazgos.</p>")
         else:
             partes.append(profile.styled(self.alerts).to_html())
-
         if not self.compositional.empty:
             partes.append("<h3 style='margin:1.2em 0 0.3em'>Grupos composicionales</h3>")
             partes.append(self.compositional.to_html(index=False))
-
-        for nombre, fig in self.figures.items():
-            partes.append(f"<h3 style='margin:1.2em 0 0.3em'>{nombre.capitalize()}</h3>")
-            partes.append(self._img(fig))
         return "\n".join(partes)
+
+    def _repr_html_(self) -> str:
+        """Solo las tablas. Las figuras se emiten aparte, ver `_ipython_display_`."""
+        return self._tablas_html()
+
+    def _ipython_display_(self) -> None:
+        """Emite cada parte como una salida propia del notebook.
+
+        Antes incrustaba las figuras en base64 dentro del HTML. Se veían bien
+        en el notebook, pero **desaparecían al renderizar a PDF o a PowerPoint**:
+        ni LaTeX ni PowerPoint saben leer un `<img>` dentro de un blob HTML.
+
+        Emitiéndolas como salidas separadas, cada figura lleva su
+        representación `image/png` y sobrevive a los tres formatos. Como están
+        cerradas del registro de pyplot, tampoco se duplican.
+        """
+        from IPython.display import HTML, display
+
+        display(HTML(self._tablas_html()))
+        for nombre, fig in self.figures.items():
+            display(HTML(f"<h3 style='margin:1.2em 0 0.3em'>{nombre.capitalize()}</h3>"))
+            display(fig)
 
 
 def explore(

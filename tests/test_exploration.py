@@ -43,10 +43,11 @@ def test_con_nulos_si_lo_dibuja(df):
     assert "datos faltantes" in r.figures
 
 
-def test_repr_html_incluye_las_figuras(df):
+def test_repr_html_trae_las_tablas(df):
+    """El HTML lleva las tablas; las figuras van como salidas aparte."""
     html = sumakit.explore(df)._repr_html_()
-    assert html.count("<img") == len(sumakit.explore(df).figures)
-    assert "data:image/png;base64," in html
+    assert "Qué revisar" in html
+    assert "<table" in html
 
 
 def test_repr_texto_es_informativo(df):
@@ -120,6 +121,26 @@ def test_las_figuras_siguen_siendo_usables_tras_cerrarlas(df):
     assert buf.getbuffer().nbytes > 0, "cerrarla no debe inutilizarla"
 
 
-def test_el_html_incrusta_cada_figura_una_sola_vez(df):
+def test_las_figuras_no_viajan_dentro_del_html(df):
+    """Incrustadas en base64 se pierden al renderizar a PDF o a PowerPoint:
+    ni LaTeX ni PowerPoint leen un <img> dentro de un blob HTML."""
     r = sumakit.explore(df)
-    assert r._repr_html_().count("<img") == len(r.figures)
+    assert "<img" not in r._repr_html_()
+
+
+def test_las_figuras_se_emiten_como_salidas_propias(df, monkeypatch):
+    """Incrustadas en el HTML se pierden al renderizar a PDF o PowerPoint."""
+    emitidos = []
+    import IPython.display as ipd
+    monkeypatch.setattr(ipd, "display", lambda obj: emitidos.append(obj))
+    r = sumakit.explore(df)
+    r._ipython_display_()
+    from matplotlib.figure import Figure
+    figuras = [o for o in emitidos if isinstance(o, Figure)]
+    assert len(figuras) == len(r.figures), "cada figura debe ser su propia salida"
+
+
+def test_el_html_ya_no_incrusta_imagenes(df):
+    r = sumakit.explore(df)
+    assert "<img" not in r._repr_html_(), "las imágenes van aparte, no dentro del HTML"
+    assert "Qué revisar" in r._repr_html_()
