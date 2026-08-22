@@ -120,9 +120,17 @@ def duplicates(
             profile.duplicates(df, comportamiento, label="comportamiento"),
         ])
 
-    Las columnas responden preguntas distintas: `n_filas_repetidas` cuenta
-    todas las filas involucradas, `n_grupos` cuántas combinaciones distintas
-    se repiten, y `n_a_eliminar` cuántas filas se irían con `drop_duplicates`.
+    Las columnas responden preguntas distintas, y dos se confunden con
+    facilidad. Con seis filas donde 1,2,3 son iguales entre sí y 4,5 también:
+
+        filas_con_gemelo       5   las que tienen al menos un igual (la 6 no)
+        grupos                 2   {1,2,3} y {4,5}
+        mayor_grupo            3
+        sobrantes              3   dos del primer grupo, una del segundo
+        filas_tras_deduplicar  3   un representante de cada grupo, más la 6
+
+    O sea: cinco filas *están involucradas*, pero solo tres *sobran*, porque
+    de cada grupo se conserva una.
     """
     cols = list(subset) if subset is not None else list(df.columns)
     faltan = [c for c in cols if c not in df.columns]
@@ -145,14 +153,14 @@ def duplicates(
         mayor = 0
 
     fila = {
-        "n_filas": n,
-        "n_columnas_clave": len(cols),
-        "n_filas_repetidas": n_dup,
-        "pct_repetidas": round(100 * n_dup / n, 2) if n else 0.0,
-        "n_grupos": n_grupos,
-        "grupo_mayor": mayor,
-        "n_a_eliminar": n_extra,
-        "n_filas_unicas": n - n_extra,
+        "filas": n,
+        "columnas_comparadas": len(cols),
+        "filas_con_gemelo": n_dup,
+        "pct_con_gemelo": round(100 * n_dup / n, 2) if n else 0.0,
+        "grupos": n_grupos,
+        "mayor_grupo": mayor,
+        "sobrantes": n_extra,
+        "filas_tras_deduplicar": n - n_extra,
     }
     nombre = label or ("todas las columnas" if subset is None else f"{len(cols)} columnas")
     return pd.DataFrame([fila], index=pd.Index([nombre], name="subconjunto"))
@@ -260,10 +268,10 @@ def alerts(
 
     # --- duplicados ---------------------------------------------------------
     dup = duplicates(df).iloc[0]
-    if dup["n_filas_repetidas"]:
+    if dup["filas_con_gemelo"]:
         añadir("alta", "duplicados", "(filas)",
-               f"{dup['n_filas_repetidas']} filas repetidas en {dup['n_grupos']} grupos "
-               f"({dup['pct_repetidas']}%): revisa si el dataset viene de un join.")
+               f"{dup['filas_con_gemelo']} filas repetidas en {dup['grupos']} grupos "
+               f"({dup['pct_con_gemelo']}%): revisa si el dataset viene de un join.")
 
     # --- colinealidad -------------------------------------------------------
     pares = _stats.high_correlation_pairs(df, threshold=corr)

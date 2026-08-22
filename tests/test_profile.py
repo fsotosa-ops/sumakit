@@ -50,8 +50,8 @@ def test_cardinality_sin_categoricas():
 
 def test_duplicates_por_subconjunto():
     d = pd.DataFrame({"id": [1, 1, 2], "v": ["a", "b", "c"]})
-    assert profile.duplicates(d).iloc[0]["n_filas_repetidas"] == 0
-    assert profile.duplicates(d, subset=["id"]).iloc[0]["n_filas_repetidas"] == 2
+    assert profile.duplicates(d).iloc[0]["filas_con_gemelo"] == 0
+    assert profile.duplicates(d, subset=["id"]).iloc[0]["filas_con_gemelo"] == 2
 
 
 def test_duplicates_devuelve_dataframe_de_una_fila():
@@ -68,16 +68,16 @@ def test_duplicates_se_puede_concatenar_por_corte():
         profile.duplicates(d, ["id"], label="llave"),
     ])
     assert list(tabla.index) == ["todo", "llave"]
-    assert tabla.loc["llave", "n_grupos"] == 1
+    assert tabla.loc["llave", "grupos"] == 1
 
 
 def test_duplicates_cuenta_grupos_y_el_mayor():
     d = pd.DataFrame({"k": ["a", "a", "a", "b", "b", "c"]})
     out = profile.duplicates(d, ["k"]).iloc[0]
-    assert out["n_grupos"] == 2          # a y b
-    assert out["grupo_mayor"] == 3       # a aparece tres veces
-    assert out["n_a_eliminar"] == 3      # dos de 'a' y una de 'b'
-    assert out["n_filas_unicas"] == 3
+    assert out["grupos"] == 2          # a y b
+    assert out["mayor_grupo"] == 3       # a aparece tres veces
+    assert out["sobrantes"] == 3      # dos de 'a' y una de 'b'
+    assert out["filas_tras_deduplicar"] == 3
 
 
 def test_duplicates_columna_inexistente():
