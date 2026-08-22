@@ -18,6 +18,7 @@ __all__ = [
     "missing",
     "cardinality",
     "duplicates",
+    "duplicated_rows",
     "constant_columns",
 ]
 
@@ -101,21 +102,100 @@ def cardinality(df: pd.DataFrame, *, rare_threshold: float = 1.0) -> pd.DataFram
     return pd.DataFrame(rows, index=pd.Index(cat_cols, name="column"))
 
 
-def duplicates(df: pd.DataFrame, subset: list[str] | None = None) -> dict:
-    """Filas duplicadas, completas o según un subconjunto de llaves.
+def duplicates(
+    df: pd.DataFrame,
+    subset: list[str] | None = None,
+    *,
+    label: str | None = None,
+) -> pd.DataFrame:
+    """Resumen de filas repetidas, como tabla de una fila.
 
-    Con `subset` responde la pregunta que importa antes de un join: ¿esta
-    llave es única de verdad?
+    Devuelve un DataFrame —no un diccionario— para que se pueda concatenar,
+    ordenar y afirmar igual que el resto de la librería. Con `label` puedes
+    nombrar cada corte y compararlos de una sola vez:
+
+        pd.concat([
+            profile.duplicates(df, label="todo"),
+            profile.duplicates(df, ["CLIENTE"], label="llave"),
+            profile.duplicates(df, comportamiento, label="comportamiento"),
+        ])
+
+    Las columnas responden preguntas distintas: `n_filas_repetidas` cuenta
+    todas las filas involucradas, `n_grupos` cuántas combinaciones distintas
+    se repiten, y `n_a_eliminar` cuántas filas se irían con `drop_duplicates`.
     """
-    dup_mask = df.duplicated(subset=subset, keep=False)
-    n_dup = int(dup_mask.sum())
+    cols = list(subset) if subset is not None else list(df.columns)
+    faltan = [c for c in cols if c not in df.columns]
+    if faltan:
+        raise KeyError(f"columnas ausentes en el DataFrame: {faltan}")
+
     n = len(df)
-    return {
-        "n_duplicated_rows": n_dup,
-        "pct_duplicated": round(100 * n_dup / n, 2) if n else 0.0,
-        "n_unique_rows": int(n - df.duplicated(subset=subset, keep="first").sum()),
-        "subset": subset,
+    todas = df.duplicated(subset=cols, keep=False)
+    extras = df.duplicated(subset=cols, keep="first")
+    n_dup = int(todas.sum())
+    n_extra = int(extras.sum())
+    # Un grupo de tamaño k aporta k filas con keep=False y k-1 con keep="first":
+    # la diferencia es exactamente la cantidad de grupos.
+    n_grupos = n_dup - n_extra
+
+    if n_dup:
+        tamaños = df.loc[todas].groupby(cols, observed=True, dropna=False).size()
+        mayor = int(tamaños.max())
+    else:
+        mayor = 0
+
+    fila = {
+        "n_filas": n,
+        "n_columnas_clave": len(cols),
+        "n_filas_repetidas": n_dup,
+        "pct_repetidas": round(100 * n_dup / n, 2) if n else 0.0,
+        "n_grupos": n_grupos,
+        "grupo_mayor": mayor,
+        "n_a_eliminar": n_extra,
+        "n_filas_unicas": n - n_extra,
     }
+    nombre = label or ("todas las columnas" if subset is None else f"{len(cols)} columnas")
+    return pd.DataFrame([fila], index=pd.Index([nombre], name="subconjunto"))
+
+
+def duplicated_rows(
+    df: pd.DataFrame,
+    subset: list[str] | None = None,
+    *,
+    max_groups: int | None = 20,
+) -> pd.DataFrame:
+    """Las filas repetidas, agrupadas y etiquetadas para poder mirarlas.
+
+    Ordenar por las columnas del subconjunto deja las filas idénticas
+    adyacentes, pero no dice dónde termina un grupo y empieza el siguiente.
+    Aquí cada fila lleva `_grupo` y `_tamaño`, y los grupos más grandes van
+    primero, que son los que suelen delatar el origen del problema.
+
+    `max_groups` recorta la cantidad de grupos, no de filas: así nunca se
+    muestra un grupo partido por la mitad.
+    """
+    cols = list(subset) if subset is not None else list(df.columns)
+    faltan = [c for c in cols if c not in df.columns]
+    if faltan:
+        raise KeyError(f"columnas ausentes en el DataFrame: {faltan}")
+
+    mascara = df.duplicated(subset=cols, keep=False)
+    if not mascara.any():
+        vacio = df.head(0).copy()
+        vacio.insert(0, "_tamaño", pd.Series(dtype=int))
+        vacio.insert(0, "_grupo", pd.Series(dtype=int))
+        return vacio
+
+    filas = df.loc[mascara].copy()
+    grupos = filas.groupby(cols, observed=True, dropna=False, sort=False)
+    filas.insert(0, "_grupo", grupos.ngroup() + 1)
+    filas.insert(1, "_tamaño", filas.groupby("_grupo")["_grupo"].transform("size"))
+
+    filas = filas.sort_values(["_tamaño", "_grupo"], ascending=[False, True])
+    if max_groups is not None:
+        conservar = filas["_grupo"].drop_duplicates().head(max_groups)
+        filas = filas[filas["_grupo"].isin(conservar)]
+    return filas
 
 
 def constant_columns(df: pd.DataFrame) -> list[str]:
@@ -179,11 +259,11 @@ def alerts(
                "Excluir del modelo.")
 
     # --- duplicados ---------------------------------------------------------
-    dup = duplicates(df)
-    if dup["n_duplicated_rows"]:
+    dup = duplicates(df).iloc[0]
+    if dup["n_filas_repetidas"]:
         añadir("alta", "duplicados", "(filas)",
-               f"{dup['n_duplicated_rows']} filas duplicadas "
-               f"({dup['pct_duplicated']}%): revisa si el dataset viene de un join.")
+               f"{dup['n_filas_repetidas']} filas repetidas en {dup['n_grupos']} grupos "
+               f"({dup['pct_repetidas']}%): revisa si el dataset viene de un join.")
 
     # --- colinealidad -------------------------------------------------------
     pares = _stats.high_correlation_pairs(df, threshold=corr)

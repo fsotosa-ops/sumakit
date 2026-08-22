@@ -1,6 +1,7 @@
 """Las tablas de perfilado devuelven DataFrames sobre los que se puede afirmar."""
 
 import pandas as pd
+import pytest
 
 from sumakit import profile
 
@@ -49,8 +50,69 @@ def test_cardinality_sin_categoricas():
 
 def test_duplicates_por_subconjunto():
     d = pd.DataFrame({"id": [1, 1, 2], "v": ["a", "b", "c"]})
-    assert profile.duplicates(d)["n_duplicated_rows"] == 0
-    assert profile.duplicates(d, subset=["id"])["n_duplicated_rows"] == 2
+    assert profile.duplicates(d).iloc[0]["n_filas_repetidas"] == 0
+    assert profile.duplicates(d, subset=["id"]).iloc[0]["n_filas_repetidas"] == 2
+
+
+def test_duplicates_devuelve_dataframe_de_una_fila():
+    """Como el resto de la librería: concatenable, ordenable, afirmable."""
+    d = pd.DataFrame({"id": [1, 1, 2], "v": ["a", "b", "c"]})
+    out = profile.duplicates(d, subset=["id"])
+    assert isinstance(out, pd.DataFrame) and len(out) == 1
+
+
+def test_duplicates_se_puede_concatenar_por_corte():
+    d = pd.DataFrame({"id": [1, 1, 2], "v": ["a", "b", "c"]})
+    tabla = pd.concat([
+        profile.duplicates(d, label="todo"),
+        profile.duplicates(d, ["id"], label="llave"),
+    ])
+    assert list(tabla.index) == ["todo", "llave"]
+    assert tabla.loc["llave", "n_grupos"] == 1
+
+
+def test_duplicates_cuenta_grupos_y_el_mayor():
+    d = pd.DataFrame({"k": ["a", "a", "a", "b", "b", "c"]})
+    out = profile.duplicates(d, ["k"]).iloc[0]
+    assert out["n_grupos"] == 2          # a y b
+    assert out["grupo_mayor"] == 3       # a aparece tres veces
+    assert out["n_a_eliminar"] == 3      # dos de 'a' y una de 'b'
+    assert out["n_filas_unicas"] == 3
+
+
+def test_duplicates_columna_inexistente():
+    with pytest.raises(KeyError, match="ausentes"):
+        profile.duplicates(pd.DataFrame({"a": [1]}), ["no_existe"])
+
+
+# --- ver los duplicados -----------------------------------------------------
+
+def test_duplicated_rows_etiqueta_grupo_y_tamaño():
+    d = pd.DataFrame({"k": ["a", "a", "b", "b", "b", "c"], "v": range(6)})
+    out = profile.duplicated_rows(d, ["k"])
+    assert list(out.columns[:2]) == ["_grupo", "_tamaño"]
+    assert len(out) == 5                      # 'c' no se repite
+    assert out.iloc[0]["_tamaño"] == 3        # el grupo mayor va primero
+
+
+def test_duplicated_rows_mantiene_los_grupos_juntos():
+    d = pd.DataFrame({"k": ["a", "b", "a", "b"], "v": range(4)})
+    out = profile.duplicated_rows(d, ["k"])
+    grupos = list(out["_grupo"])
+    assert grupos == sorted(grupos, key=grupos.index), "un grupo no puede quedar partido"
+
+
+def test_duplicated_rows_recorta_grupos_no_filas():
+    d = pd.DataFrame({"k": [c for c in "aabbccdd"]})
+    out = profile.duplicated_rows(d, ["k"], max_groups=2)
+    assert out["_grupo"].nunique() == 2
+    assert len(out) == 4, "recorta grupos completos, nunca los parte"
+
+
+def test_duplicated_rows_sin_duplicados_devuelve_vacio():
+    d = pd.DataFrame({"k": ["a", "b", "c"]})
+    out = profile.duplicated_rows(d, ["k"])
+    assert out.empty and "_grupo" in out.columns
 
 
 def test_constant_columns(df):
