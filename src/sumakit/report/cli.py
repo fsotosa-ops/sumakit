@@ -18,6 +18,47 @@ from pathlib import Path
 __all__ = ["init", "render", "main"]
 
 _PAQUETE = "sumakit.report"
+_ESQUELETO_NEGOCIO = '''"""Construye el deck de negocio a partir del análisis del notebook.
+
+Se ejecuta, no se renderiza: `python negocio.py`. El resultado es un .pptx
+que se abre en PowerPoint o Google Slides para el retoque final.
+"""
+
+from pathlib import Path
+
+import matplotlib
+matplotlib.use("Agg")
+
+from sumakit import nb, theme
+from sumakit.deck import Deck
+
+nb.setup(seed=42, palette=theme.LIGHT)
+
+AQUI = Path(__file__).parent
+FIGURAS = AQUI / "figuras"
+FIGURAS.mkdir(exist_ok=True)
+
+# Genera aquí las figuras con sumakit.plots y guárdalas en FIGURAS/,
+# o reutiliza las que el notebook ya exportó.
+
+d = Deck("{titulo}", subtitle="{autor}", footer="")
+d.cover()
+d.agenda(["Negocio y problemática", "Datos y metodología",
+          "Principales hallazgos", "Recomendaciones"])
+
+# Cada hallazgo necesita un título de acción: la conclusión en una frase.
+# "Resultados" no pasa la validación, y es a propósito.
+d.finding(
+    "Escribe aquí el hallazgo completo, no una etiqueta de sección",
+    kicker="Principales hallazgos",
+    # image=FIGURAS / "algo.png",
+    # callouts=["La anotación que le dice al lector qué mirar"],
+)
+
+d.save(AQUI / ".." / "entrega" / "negocio.pptx")
+print("deck generado")
+'''
+
 _ESQUELETO = '''---
 title: "{titulo}"
 author: "{autor}"
@@ -35,19 +76,31 @@ entregable, y jala del notebook solo las figuras que elijas:
 {{{{< embed ../desarrollo/{notebook}#fig-ejemplo >}}}}
 
 Para que el embed funcione, la celda del notebook tiene que llevar una
-etiqueta:
+etiqueta. El prefijo importa: `fig-` para figuras, `tbl-` para tablas, y tiene
+que coincidir con lo que la celda realmente emite.
 
 ```
 #| label: fig-ejemplo
 #| fig-cap: "Descripción de la figura"
 ```
+
+Una advertencia sobre tablas anchas: una columna con listas largas de texto se
+sale del margen y ningún ajuste de formato lo arregla. Selecciona las columnas
+antes de embeber, o fija los anchos con `#| tbl-colwidths: [10, 20, 70]`.
 '''
 
 
 def init(destino: Path | str = ".", *, notebook: str = "notebook.ipynb",
          titulo: str = "Informe", autor: str = "", force: bool = False,
-         esqueleto: bool = True) -> Path:
-    """Instala los formatos en un proyecto y siembra el esqueleto del informe."""
+         esqueleto: bool = True, tipo: str = "ambos") -> Path:
+    """Instala los formatos en un proyecto y siembra los esqueletos.
+
+    `tipo` elige qué caminos sembrar: `academico` (PDF vía LaTeX), `negocio`
+    (deck de consultoría) o `ambos`. Son dos géneros distintos y por eso son
+    dos archivos, no dos secciones del mismo.
+    """
+    if tipo not in {"academico", "negocio", "ambos"}:
+        raise ValueError(f"tipo debe ser academico, negocio o ambos; no {tipo!r}")
     destino = Path(destino).resolve()
     extensiones = destino / "_extensions"
 
@@ -75,7 +128,16 @@ def init(destino: Path | str = ".", *, notebook: str = "notebook.ipynb",
                 shutil.copytree(formato, objetivo)
                 print(f"  + {objetivo.relative_to(destino)}")
 
-    if esqueleto:
+    if esqueleto and tipo in {"negocio", "ambos"}:
+        script = destino / "negocio.py"
+        if script.exists() and not force:
+            print(f"  = {script.name} (ya existe)")
+        else:
+            script.write_text(
+                _ESQUELETO_NEGOCIO.format(titulo=titulo, autor=autor), encoding="utf-8")
+            print(f"  + {script.name}")
+
+    if esqueleto and tipo in {"academico", "ambos"}:
         qmd = destino / "academico.qmd"
         if qmd.exists() and not force:
             print(f"  = {qmd.name} (ya existe)")
@@ -136,6 +198,8 @@ def main(argv: list[str] | None = None) -> int:
     p_init.add_argument("--autor", default="")
     p_init.add_argument("--force", action="store_true")
     p_init.add_argument("--sin-esqueleto", action="store_true")
+    p_init.add_argument("--tipo", default="ambos",
+                        choices=["academico", "negocio", "ambos"])
 
     p_render = sub.add_parser("render", help="renderizar un .qmd")
     p_render.add_argument("fuente")
@@ -145,7 +209,8 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if args.comando == "report":
         init(args.destino, notebook=args.notebook, titulo=args.titulo,
-             autor=args.autor, force=args.force, esqueleto=not args.sin_esqueleto)
+             autor=args.autor, force=args.force, esqueleto=not args.sin_esqueleto,
+             tipo=args.tipo)
     else:
         destino = render(args.fuente, salida=args.salida, ejecutar=args.ejecutar)
         print(f"  -> {destino}")

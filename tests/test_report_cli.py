@@ -77,3 +77,29 @@ def test_el_acento_del_preambulo_coincide_con_la_paleta(tmp_path):
 def test_main_acepta_la_linea_de_comandos(tmp_path, capsys):
     assert cli.main(["report", "init", "--destino", str(tmp_path)]) == 0
     assert (tmp_path / "academico.qmd").exists()
+
+
+def test_siembra_los_dos_caminos(tmp_path):
+    """Académico y negocio son géneros distintos: dos archivos, no dos secciones."""
+    cli.init(tmp_path, titulo="T", autor="A")
+    assert (tmp_path / "academico.qmd").exists()
+    assert (tmp_path / "negocio.py").exists()
+
+
+def test_puede_sembrar_solo_uno(tmp_path):
+    cli.init(tmp_path, tipo="academico")
+    assert (tmp_path / "academico.qmd").exists()
+    assert not (tmp_path / "negocio.py").exists()
+
+
+def test_el_esqueleto_de_negocio_usa_la_api_del_deck(tmp_path):
+    cli.init(tmp_path, tipo="negocio", titulo="Mi deck")
+    py = (tmp_path / "negocio.py").read_text(encoding="utf-8")
+    assert "from sumakit.deck import Deck" in py
+    assert "Mi deck" in py
+    assert "título de acción" in py, "el esqueleto debe explicar la regla"
+
+
+def test_tipo_invalido_falla(tmp_path):
+    with pytest.raises(ValueError, match="academico, negocio o ambos"):
+        cli.init(tmp_path, tipo="inventado")

@@ -22,3 +22,11 @@
 % Pies de figura y tabla en gris: acompañan, no compiten.
 \usepackage{caption}
 \captionsetup{font=small, labelfont=bf, textfont={color=sumakitmuted}}
+
+% Las tablas de un perfilado traen columnas de texto largo —listas de nombres
+% de variables— que se salen del margen. Reducir el cuerpo dentro del entorno
+% de tabla las devuelve a la caja sin tocar el texto del documento.
+\usepackage{etoolbox}
+\AtBeginEnvironment{longtable}{\footnotesize}
+\AtBeginEnvironment{tabular}{\footnotesize}
+\setlength{\tabcolsep}{4pt}
