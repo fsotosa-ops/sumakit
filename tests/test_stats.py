@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from minta import stats
+from sumakit import stats
 
 
 def test_distribution_report_sugiere_robust_para_lo_sesgado(df):

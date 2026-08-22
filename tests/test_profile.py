@@ -2,7 +2,7 @@
 
 import pandas as pd
 
-from minta import profile
+from sumakit import profile
 
 
 def test_overview_cuenta_nulos_y_porcentajes(df):

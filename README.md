@@ -1,10 +1,10 @@
-# minta
+# sumakit
 
 Utilidades de EDA y analítica reutilizables: tablas de perfilado, diagnóstico
 estadístico y gráficos con un tema consistente y re-skineable.
 
 ```python
-from minta import nb, profile, stats, plots
+from sumakit import nb, profile, stats, plots
 
 nb.setup(seed=42)
 
@@ -27,7 +27,7 @@ fig.savefig("correlaciones.svg")      # sirve en notebook, informe y lámina
 ## Re-skinear por cliente
 
 ```python
-from minta import theme
+from sumakit import theme
 marca = theme.Palette(name="cliente", categorical=(...), ...)
 theme.use(marca)
 ```
@@ -40,8 +40,8 @@ generar colores indistinguibles.
 ## Instalación
 
 ```bash
-pip install git+https://github.com/<usuario>/minta.git      # también en Colab
-pip install "minta[ml] @ git+https://github.com/<usuario>/minta.git"
+pip install git+https://github.com/<usuario>/sumakit.git      # también en Colab
+pip install "sumakit[ml] @ git+https://github.com/<usuario>/sumakit.git"
 ```
 
 `[ml]` agrega scikit-learn, que habilita la información mutua en

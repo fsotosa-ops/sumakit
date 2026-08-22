@@ -5,7 +5,7 @@ import pandas as pd
 import pytest
 from matplotlib.figure import Figure
 
-from minta import plots, theme
+from sumakit import plots, theme
 
 
 # --- regresiones de los bugs encontrados en eda_utils.py --------------------

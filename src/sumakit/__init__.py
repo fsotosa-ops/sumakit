@@ -1,6 +1,6 @@
-"""minta — utilidades de EDA y analítica reutilizables.
+"""sumakit — utilidades de EDA y analítica reutilizables.
 
-    from minta import nb, profile, stats, plots
+    from sumakit import nb, profile, stats, plots
     nb.setup(seed=42)
 
     profile.overview(df)                 # tabla: tipos, nulos, únicos, ceros

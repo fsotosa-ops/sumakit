@@ -176,7 +176,7 @@ def high_correlation_pairs(
 def target_report(df: pd.DataFrame, target: str, *, method: str = "pearson") -> pd.DataFrame:
     """Relación de cada variable numérica con el objetivo, ordenada por fuerza.
 
-    Con `scikit-learn` instalado (`pip install minta[ml]`) agrega información
+    Con `scikit-learn` instalado (`pip install sumakit[ml]`) agrega información
     mutua, que captura relaciones no lineales que la correlación no ve.
 
     Las columnas constantes quedan fuera: no aportan señal y solo ensucian la
