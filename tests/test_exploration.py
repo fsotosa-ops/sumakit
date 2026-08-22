@@ -98,3 +98,28 @@ def test_la_grilla_queda_detras_de_las_marcas():
     theme.use(theme.LIGHT)
     fig = plots.ranking(pd.Series({"a": 1.0, "b": 2.0}))
     assert fig.axes[0].get_axisbelow() is True
+
+
+def test_no_deja_figuras_en_el_registro_de_pyplot(df):
+    """Si quedan abiertas, el backend inline de Jupyter las dibuja de nuevo
+    y el usuario ve cada figura dos veces: una incrustada en el HTML y otra
+    volcada al final de la celda."""
+    import matplotlib.pyplot as plt
+    plt.close("all")
+    r = sumakit.explore(df)
+    assert r.figures, "el caso solo tiene sentido si se generaron figuras"
+    assert plt.get_fignums() == [], "quedaron figuras abiertas: se verán duplicadas"
+
+
+def test_las_figuras_siguen_siendo_usables_tras_cerrarlas(df):
+    import io
+    r = sumakit.explore(df)
+    fig = next(iter(r.figures.values()))
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png")
+    assert buf.getbuffer().nbytes > 0, "cerrarla no debe inutilizarla"
+
+
+def test_el_html_incrusta_cada_figura_una_sola_vez(df):
+    r = sumakit.explore(df)
+    assert r._repr_html_().count("<img") == len(r.figures)

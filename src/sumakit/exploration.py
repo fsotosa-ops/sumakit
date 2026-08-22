@@ -15,6 +15,7 @@ import base64
 import io
 from dataclasses import dataclass, field
 
+import matplotlib.pyplot as plt
 import pandas as pd
 from matplotlib.figure import Figure
 
@@ -122,6 +123,14 @@ def explore(
 
     if df.select_dtypes("number").shape[1] >= 2:
         figuras["correlación"] = plots.correlation_heatmap(muestra)
+
+    # Las figuras salen del registro global de pyplot, no de la memoria: el
+    # backend `inline` de Jupyter vuelca al final de cada celda todas las
+    # figuras abiertas, y como `_repr_html_` ya las incrusta, se verían dos
+    # veces. Tras `close` el objeto Figure sigue siendo válido: `savefig`
+    # funciona igual.
+    for fig in figuras.values():
+        plt.close(fig)
 
     return Exploration(
         alerts=alertas, overview=resumen, distributions=forma,
