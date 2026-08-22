@@ -84,9 +84,17 @@ que coincidir con lo que la celda realmente emite.
 #| fig-cap: "Descripción de la figura"
 ```
 
-Una advertencia sobre tablas anchas: una columna con listas largas de texto se
-sale del margen y ningún ajuste de formato lo arregla. Selecciona las columnas
-antes de embeber, o fija los anchos con `#| tbl-colwidths: [10, 20, 70]`.
+Para tablas anchas, emítelas como markdown y fija los anchos. Un DataFrame se
+muestra como HTML, y Pandoc lo traduce a un `tabular` de columnas rígidas que
+se sale del margen; como markdown, respeta los anchos y parte el texto:
+
+```
+#| tbl-colwidths: [12, 12, 76]
+profile.as_markdown(stats.sum_constant_groups(df), index=False)
+```
+
+Y recuerda que `embed` toma los outputs **guardados** del notebook: si cambias
+una celda, hay que re-ejecutarlo para que el informe lo refleje.
 '''
 
 

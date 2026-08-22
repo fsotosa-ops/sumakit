@@ -14,6 +14,7 @@ import pandas as pd
 __all__ = [
     "alerts",
     "styled",
+    "as_markdown",
     "overview",
     "missing",
     "cardinality",
@@ -382,3 +383,29 @@ def styled(tabla: pd.DataFrame, *, hide: tuple[str, ...] = ("memory_kb",)):
         )
 
     return st.set_properties(**{"font-size": "90%"})
+
+
+def as_markdown(tabla: pd.DataFrame, *, index: bool = True, floatfmt: str = ",.10g"):
+    """Convierte una tabla a markdown, para que sobreviva a PDF y a Word.
+
+    Existe por una diferencia que no es obvia: un DataFrame se muestra como
+    **HTML**, y Pandoc traduce ese HTML a un `tabular` de LaTeX con columnas
+    rígidas. Si una celda trae una lista larga, la tabla se sale del margen y
+    `tbl-colwidths` no puede hacer nada, porque esa opción solo aplica a tablas
+    markdown.
+
+    Emitida como markdown, la misma tabla respeta los anchos y parte el texto
+    en varias líneas:
+
+        #| tbl-colwidths: [12, 12, 76]
+        profile.as_markdown(stats.sum_constant_groups(df))
+
+    En el notebook se ve igual de bien; la diferencia aparece al renderizar.
+
+    `floatfmt` usa diez cifras significativas y no cuatro: con cuatro, un monto
+    de siete dígitos salta a notación científica. Es el mismo motivo por el que
+    `nb.adaptive_float` existe.
+    """
+    from IPython.display import Markdown
+
+    return Markdown(tabla.to_markdown(index=index, floatfmt=floatfmt))

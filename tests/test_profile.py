@@ -207,3 +207,31 @@ def test_formato_adaptativo_casos_limite():
     assert adaptive_float(0.0) == "0"
     assert adaptive_float(12.5) == "12.50"
     assert adaptive_float(float("nan")) == "nan"
+
+
+# --- tablas que sobreviven al PDF -------------------------------------------
+
+def test_as_markdown_devuelve_markdown_no_html():
+    """Un DataFrame se emite como HTML, y Pandoc lo vuelve un tabular rígido."""
+    from IPython.display import Markdown
+    salida = profile.as_markdown(pd.DataFrame({"a": [1, 2]}, index=["x", "y"]))
+    assert isinstance(salida, Markdown)
+    texto = salida.data
+    assert "|" in texto and "<table" not in texto
+
+
+def test_as_markdown_conserva_el_indice_por_defecto():
+    texto = profile.as_markdown(pd.DataFrame({"a": [1]}, index=["fila"])).data
+    assert "fila" in texto
+
+
+def test_as_markdown_puede_omitir_el_indice():
+    texto = profile.as_markdown(pd.DataFrame({"a": [1]}, index=["fila"]), index=False).data
+    assert "fila" not in texto
+
+
+def test_el_formato_por_defecto_no_usa_notacion_cientifica():
+    """Con cuatro cifras significativas un monto de siete dígitos salta a 1.2e+06."""
+    texto = profile.as_markdown(pd.DataFrame({"a": [1234567.0, 0.000123]})).data
+    assert "e+0" not in texto
+    assert "1,234,567" in texto and "0.000123" in texto
