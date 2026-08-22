@@ -88,3 +88,62 @@ def test_target_report_excluye_constantes(df):
     out = stats.target_report(df, "objetivo")
     assert "constante" not in out.index
     assert out["abs_corr"].notna().all()
+
+
+# --- datos composicionales --------------------------------------------------
+
+@pytest.fixture
+def df_composicional():
+    """Dos grupos que suman 1, más ruido que no forma parte de ninguno."""
+    rng = np.random.default_rng(7)
+    n = 400
+    a = rng.dirichlet([2, 3, 5], n)          # tres partes que suman 1
+    b = rng.dirichlet([1, 1], n)             # dos partes que suman 1
+    return pd.DataFrame({
+        "manana": a[:, 0], "tarde": a[:, 1], "noche": a[:, 2],
+        "nacional": b[:, 0], "internacional": b[:, 1],
+        "monto": rng.exponential(500, n),
+        "n_trx": rng.integers(1, 90, n),
+    })
+
+
+def test_encuentra_los_grupos_que_suman_uno(df_composicional):
+    g = stats.sum_constant_groups(df_composicional)
+    grupos = {frozenset(c.strip() for c in fila.split(",")) for fila in g["columns"]}
+    assert frozenset(["manana", "tarde", "noche"]) in grupos
+    assert frozenset(["nacional", "internacional"]) in grupos
+
+
+def test_no_arrastra_columnas_ajenas(df_composicional):
+    g = stats.sum_constant_groups(df_composicional)
+    todas = {c.strip() for fila in g["columns"] for c in fila.split(",")}
+    assert "monto" not in todas and "n_trx" not in todas
+
+
+def test_los_grupos_son_disjuntos(df_composicional):
+    g = stats.sum_constant_groups(df_composicional)
+    vistas = []
+    for fila in g["columns"]:
+        vistas += [c.strip() for c in fila.split(",")]
+    assert len(vistas) == len(set(vistas)), "una columna no puede estar en dos grupos"
+
+
+def test_detecta_composiciones_en_porcentaje():
+    """El mismo caso pero en escala 0-100 en vez de 0-1."""
+    rng = np.random.default_rng(3)
+    a = rng.dirichlet([2, 2, 2], 200) * 100
+    d = pd.DataFrame({"x": a[:, 0], "y": a[:, 1], "z": a[:, 2]})
+    g = stats.sum_constant_groups(d)
+    assert len(g) == 1
+    assert g.loc[0, "constant"] == 100.0
+
+
+def test_sin_composicion_no_inventa_grupos():
+    rng = np.random.default_rng(1)
+    d = pd.DataFrame(rng.exponential(3, (200, 5)), columns=list("abcde"))
+    assert stats.sum_constant_groups(d).empty
+
+
+def test_una_sola_columna_no_es_grupo():
+    d = pd.DataFrame({"x": [1.0] * 10})
+    assert stats.sum_constant_groups(d).empty

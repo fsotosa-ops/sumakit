@@ -55,3 +55,71 @@ def test_duplicates_por_subconjunto():
 
 def test_constant_columns(df):
     assert profile.constant_columns(df) == ["constante"]
+
+
+# --- alertas ----------------------------------------------------------------
+
+def test_alerts_ordena_por_gravedad(df):
+    out = profile.alerts(df)
+    severidades = list(out["severidad"])
+    assert severidades == sorted(severidades, key=["crítica", "alta", "media"].index)
+
+
+def test_alerts_detecta_identificador():
+    d = pd.DataFrame({"id": range(50), "v": [1.0] * 25 + [2.0] * 25})
+    out = profile.alerts(d)
+    assert "identificador" in set(out["chequeo"])
+
+
+def test_alerts_detecta_constante(df):
+    out = profile.alerts(df)
+    fila = out[out["chequeo"] == "constante"]
+    assert not fila.empty and "constante" in fila.iloc[0]["columnas"]
+
+
+def test_alerts_detecta_colinealidad(df):
+    out = profile.alerts(df)
+    assert "colinealidad" in set(out["chequeo"])
+
+
+def test_alerts_marca_composicional_como_critica():
+    import numpy as np
+    rng = np.random.default_rng(5)
+    a = rng.dirichlet([2, 2, 2], 200)
+    d = pd.DataFrame({"m": a[:, 0], "t": a[:, 1], "n": a[:, 2]})
+    out = profile.alerts(d)
+    fila = out[out["chequeo"] == "composicional"]
+    assert not fila.empty
+    assert fila.iloc[0]["severidad"] == "crítica", "es lo que rompe el modelo: va primero"
+
+
+def test_alerts_sobre_datos_limpios_no_alarma():
+    import numpy as np
+    rng = np.random.default_rng(2)
+    d = pd.DataFrame({"a": rng.normal(0, 1, 200), "b": rng.normal(5, 2, 200)})
+    out = profile.alerts(d)
+    assert out.empty or "crítica" not in set(out["severidad"])
+
+
+def test_alerts_puede_saltarse_la_busqueda_composicional(df):
+    out = profile.alerts(df, compositional=False)
+    assert "composicional" not in set(out["chequeo"])
+
+
+# --- estilo -----------------------------------------------------------------
+
+def test_styled_devuelve_un_styler_no_un_dataframe(df):
+    from pandas.io.formats.style import Styler
+    st = profile.styled(profile.overview(df))
+    assert isinstance(st, Styler)
+
+
+def test_styled_oculta_la_columna_de_memoria(df):
+    st = profile.styled(profile.overview(df))
+    assert "memory_kb" not in st.to_html()
+
+
+def test_las_funciones_siguen_devolviendo_dataframes(df):
+    """El estilo es una capa aparte: no debe contaminar el valor de retorno."""
+    assert isinstance(profile.overview(df), pd.DataFrame)
+    assert isinstance(profile.alerts(df), pd.DataFrame)
