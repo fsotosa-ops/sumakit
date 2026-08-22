@@ -15,7 +15,7 @@ def test_distribution_report_sugiere_robust_para_lo_sesgado(df):
 
 def test_la_razon_de_la_sugerencia_es_explicita(df):
     out = stats.distribution_report(df)
-    assert "asimetría" in out.loc["sesgada", "reason"]
+    assert "cola pesada" in out.loc["sesgada", "reason"]
     assert out.loc["normal", "reason"] == "distribución contenida"
 
 
@@ -147,3 +147,69 @@ def test_sin_composicion_no_inventa_grupos():
 def test_una_sola_columna_no_es_grupo():
     d = pd.DataFrame({"x": [1.0] * 10})
     assert stats.sum_constant_groups(d).empty
+
+
+# --- el consejo depende de la naturaleza de la variable, no solo de su forma --
+
+@pytest.fixture
+def df_mixto():
+    """Composicionales, una acotada suelta, magnitudes y un identificador."""
+    rng = np.random.default_rng(11)
+    n = 400
+    a = rng.dirichlet([2, 3, 5], n)
+    return pd.DataFrame({
+        "id": np.arange(n),
+        "manana": a[:, 0], "tarde": a[:, 1], "noche": a[:, 2],
+        "tasa_suelta": rng.uniform(0, 1, n),
+        "monto": rng.exponential(5000, n),
+        "edad": rng.integers(18, 80, n).astype(float),
+    })
+
+
+def test_no_sugiere_escalar_lo_composicional(df_mixto):
+    out = stats.distribution_report(df_mixto)
+    for col in ("manana", "tarde", "noche"):
+        assert out.loc[col, "suggested_scaler"] == "ninguno"
+        assert out.loc[col, "composicional"]
+        assert "log-ratio" in out.loc[col, "reason"]
+
+
+def test_no_sugiere_escalar_lo_ya_acotado(df_mixto):
+    out = stats.distribution_report(df_mixto)
+    assert out.loc["tasa_suelta", "acotada"]
+    assert out.loc["tasa_suelta", "suggested_scaler"] == "ninguno"
+
+
+def test_no_marca_como_acotada_una_variable_positiva_cualquiera(df_mixto):
+    """Una edad entre 18 y 80 no es una proporción."""
+    out = stats.distribution_report(df_mixto)
+    assert not out.loc["edad", "acotada"]
+
+
+def test_puede_pedirse_la_escala_0_100():
+    d = pd.DataFrame({"pct": np.linspace(0, 100, 50), "otra": np.linspace(0, 100, 50)})
+    suelto = stats.distribution_report(d, compositional=False)
+    con100 = stats.distribution_report(d, compositional=False, bounded_ceilings=(1.0, 100.0))
+    assert not suelto.loc["pct", "acotada"]
+    assert con100.loc["pct", "acotada"]
+
+
+def test_omite_los_identificadores(df_mixto):
+    assert "id" not in stats.distribution_report(df_mixto).index
+
+
+def test_las_magnitudes_siguen_recibiendo_consejo(df_mixto):
+    out = stats.distribution_report(df_mixto)
+    assert out.loc["monto", "suggested_scaler"] == "robust"
+    assert "cola pesada" in out.loc["monto", "reason"]
+
+
+def test_distingue_masa_en_cero_de_cola_pesada():
+    """Escalar no arregla una masa de ceros; decirlo evita un consejo inútil."""
+    rng = np.random.default_rng(3)
+    x = rng.exponential(2, 1000) * 100
+    x[: 700] = 0.0                      # 70% de ceros
+    d = pd.DataFrame({"con_ceros": x})
+    out = stats.distribution_report(d, compositional=False)
+    assert "masa en cero" in out.loc["con_ceros", "reason"]
+    assert out.loc["con_ceros", "pct_zeros"] >= 60

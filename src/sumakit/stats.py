@@ -194,55 +194,115 @@ def sum_constant_groups(
     return pd.DataFrame(salida).sort_values("n_columns", ascending=False).reset_index(drop=True)
 
 
+def _acotada(serie: pd.Series, techos: tuple[float, ...], tol: float = 1e-9) -> float | None:
+    """Devuelve el techo si la variable está acotada en [0, techo].
+
+    Por defecto solo se considera [0,1], y a propósito. Aceptar [0,100]
+    marcaría como proporción a cualquier variable positiva menor a cien —una
+    edad, un puntaje, un conteo—, que es justo la clase de heurística suelta
+    que produce consejos malos. Si tus porcentajes vienen en escala 0-100,
+    pásalo explícito con `bounded_ceilings=(1.0, 100.0)`.
+    """
+    lo, hi = float(serie.min()), float(serie.max())
+    if lo < -tol:
+        return None
+    for techo in techos:
+        if hi <= techo + tol:
+            return techo
+    return None
+
+
 def distribution_report(
     df: pd.DataFrame,
     *,
     skew_threshold: float = 1.0,
     outlier_threshold: float = 5.0,
+    zeros_threshold: float = 30.0,
+    bounded_ceilings: tuple[float, ...] = (1.0,),
+    compositional: bool = True,
+    exclude_ids: bool = True,
 ) -> pd.DataFrame:
     """Forma de cada variable numérica, con el escalador que le corresponde.
 
-    La sugerencia sigue una regla explícita, no una corazonada:
+    La sugerencia no mira solo la forma, porque hacerlo lleva a consejos malos:
 
-    - `robust`   — |asimetría| > umbral, o más de `outlier_threshold`% de outliers.
-                   Mediana e IQR no se dejan arrastrar por las colas.
-    - `standard` — el resto.
+    - **Composicional**: si la columna pertenece a un grupo que suma constante,
+      escalarla rompe esa suma. Su tratamiento es log-ratio o eliminar una
+      categoría del grupo, no un escalador.
+    - **Acotada**: una proporción en [0,1] ya es comparable con sus pares.
+      Solo se detecta [0,1] por defecto; ver `_acotada` para el porqué.
+      Escalarla no arregla nada y destruye la única propiedad que la hacía
+      interpretable.
+    - **Identificador**: no es una variable; se excluye.
+    - Para el resto, `robust` si |asimetría| supera el umbral o si hay más de
+      `outlier_threshold`% de outliers; `standard` en otro caso.
 
-    Es una recomendación, no un veredicto: mira la columna `reason` y decide.
+    Y distingue dos causas de asimetría que los estadísticos confunden: una
+    **cola pesada** pide escalado robusto; una **masa de ceros** no se arregla
+    escalando, y con más de `zeros_threshold`% de ceros se dice explícitamente.
     """
     num = _numeric(df)
     if num.empty:
-        return pd.DataFrame(columns=["skew", "kurtosis", "cv", "pct_outliers",
+        return pd.DataFrame(columns=["skew", "kurtosis", "cv", "pct_zeros",
+                                     "pct_outliers", "acotada", "composicional",
                                      "suggested_scaler", "reason"])
 
+    n = len(df)
+    if exclude_ids:
+        num = num[[c for c in num.columns
+                   if not (n and num[c].nunique(dropna=True) == n
+                           and not pd.api.types.is_float_dtype(num[c]))]]
+        if num.empty:
+            return distribution_report(df, exclude_ids=False, compositional=compositional)
+
+    en_grupo: set[str] = set()
+    if compositional:
+        for fila in sum_constant_groups(num)["columns"]:
+            en_grupo.update(c.strip() for c in fila.split(","))
+
     out = outliers(num, method="iqr")
-    rows = []
+    filas = []
     for col in num.columns:
-        s = num[col].dropna()
-        skew = float(s.skew()) if len(s) > 2 else 0.0
-        kurt = float(s.kurtosis()) if len(s) > 3 else 0.0
-        mean = float(s.mean()) if len(s) else 0.0
-        std = float(s.std()) if len(s) > 1 else 0.0
-        cv = float(std / abs(mean)) if mean else np.nan
+        serie = num[col].dropna()
+        skew = float(serie.skew()) if len(serie) > 2 else 0.0
+        kurt = float(serie.kurtosis()) if len(serie) > 3 else 0.0
+        media = float(serie.mean()) if len(serie) else 0.0
+        desv = float(serie.std()) if len(serie) > 1 else 0.0
+        cv = float(desv / abs(media)) if media else np.nan
         pct_out = float(out.loc[col, "pct_outliers"])
+        pct_ceros = round(100 * float((serie == 0).mean()), 2) if len(serie) else 0.0
+        techo = _acotada(serie, bounded_ceilings)
 
-        reasons = []
-        if abs(skew) > skew_threshold:
-            reasons.append(f"asimetría {skew:.2f}")
-        if pct_out > outlier_threshold:
-            reasons.append(f"{pct_out:.1f}% outliers")
-        scaler = "robust" if reasons else "standard"
+        if col in en_grupo:
+            escalador = "ninguno"
+            razon = ("parte de un grupo que suma constante: escalarla rompe la suma. "
+                     "El tratamiento es log-ratio o eliminar una categoría del grupo")
+        elif techo is not None:
+            escalador = "ninguno"
+            razon = f"ya acotada en [0,{techo:g}]: comparable con sus pares sin escalar"
+        else:
+            motivos = []
+            if abs(skew) > skew_threshold:
+                if pct_ceros > zeros_threshold:
+                    motivos.append(f"asimetría {skew:.2f} por masa en cero ({pct_ceros:.0f}%), "
+                                   "no por cola: escalar no lo arregla")
+                else:
+                    motivos.append(f"cola pesada, asimetría {skew:.2f}")
+            if pct_out > outlier_threshold:
+                motivos.append(f"{pct_out:.1f}% outliers")
+            escalador = "robust" if motivos else "standard"
+            razon = "; ".join(motivos) if motivos else "distribución contenida"
 
-        rows.append({
-            "skew": round(skew, 3),
-            "kurtosis": round(kurt, 3),
+        filas.append({
+            "skew": round(skew, 3), "kurtosis": round(kurt, 3),
             "cv": round(cv, 3) if not np.isnan(cv) else np.nan,
-            "pct_outliers": pct_out,
-            "suggested_scaler": scaler,
-            "reason": "; ".join(reasons) if reasons else "distribución contenida",
+            "pct_zeros": pct_ceros, "pct_outliers": pct_out,
+            "acotada": techo is not None, "composicional": col in en_grupo,
+            "suggested_scaler": escalador, "reason": razon,
         })
+
     return (
-        pd.DataFrame(rows, index=pd.Index(num.columns, name="column"))
+        pd.DataFrame(filas, index=pd.Index(num.columns, name="column"))
         .sort_values("skew", key=lambda s: s.abs(), ascending=False)
     )
 
