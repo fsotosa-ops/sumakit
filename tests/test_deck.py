@@ -124,3 +124,66 @@ def test_usa_el_color_de_acento_del_tema():
     from sumakit import theme
     d = Deck("d", palette=theme.LIGHT)
     assert str(d._acento) == theme.LIGHT.categorical[0].lstrip("#").upper()
+
+
+# --- regresiones de lo que salió feo en el primer deck ----------------------
+
+def _fuentes(slide):
+    return {r.font.name
+            for sh in slide.shapes if sh.has_text_frame
+            for p in sh.text_frame.paragraphs for r in p.runs}
+
+
+def test_todo_el_texto_lleva_fuente_explicita(figura):
+    """Sin font.name, PowerPoint cae en Calibri y el tema no se aplica."""
+    d = Deck("Un título de portada suficientemente largo", subtitle="s", footer="F")
+    laminas = [d.cover(), d.agenda(["uno", "dos"]), d.section("Sección"),
+               d.finding(HALLAZGO, kicker="k", image=figura,
+                         callouts=[("nota de ejemplo", 0.5, 0.1)])]
+    for s in laminas:
+        assert None not in _fuentes(s), "hay texto sin tipografía fijada"
+
+
+def test_la_tabla_no_usa_el_estilo_bandeado_de_office():
+    d = Deck("d")
+    s = d.table(HALLAZGO, pd.DataFrame({"a": [1, 2]}, index=["x", "y"]))
+    tabla = next(f.table for f in s.shapes if f.has_table)
+    assert tabla.first_row is False and tabla.horz_banding is False
+
+
+def test_el_encabezado_de_la_tabla_usa_el_acento():
+    d = Deck("d")
+    s = d.table(HALLAZGO, pd.DataFrame({"a": [1]}, index=["x"]))
+    tabla = next(f.table for f in s.shapes if f.has_table)
+    assert tabla.cell(0, 0).fill.fore_color.rgb == d._acento
+
+
+def test_la_figura_ocupa_el_ancho_disponible(figura):
+    """Escalar solo por altura dejaba media lámina vacía."""
+    from pptx.util import Inches as _In
+    d = Deck("d")
+    s = d.finding(HALLAZGO, image=figura)
+    img = next(sh for sh in s.shapes if sh.shape_type == 13)
+    ancho = img.width / 914400
+    alto = img.height / 914400
+    assert ancho > 8.0, f"la figura quedó angosta: {ancho:.2f} pulgadas"
+    assert alto <= 5.11, "la figura se sale del área de contenido"
+
+
+def test_la_figura_queda_centrada(figura):
+    d = Deck("d")
+    s = d.finding(HALLAZGO, image=figura)
+    img = next(sh for sh in s.shapes if sh.shape_type == 13)
+    izq = img.left / 914400
+    der = 13.333 - (img.left + img.width) / 914400
+    assert abs(izq - der) < 0.02, "los márgenes laterales no coinciden"
+
+
+def test_la_figura_conserva_su_proporcion(figura):
+    from PIL import Image
+    with Image.open(figura) as im:
+        proporcion = im.size[0] / im.size[1]
+    d = Deck("d")
+    img = next(sh for sh in d.finding(HALLAZGO, image=figura).shapes
+               if sh.shape_type == 13)
+    assert abs(img.width / img.height - proporcion) < 0.01

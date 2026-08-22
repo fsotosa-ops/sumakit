@@ -35,7 +35,13 @@ from pptx.dml.color import RGBColor
 from pptx.enum.text import MSO_ANCHOR, PP_ALIGN
 from pptx.util import Emu, Inches, Pt
 
+import pandas as pd
+
 from . import theme
+
+
+def pd_api_numerica(serie) -> bool:
+    return pd.api.types.is_numeric_dtype(serie)
 
 __all__ = ["Deck", "TituloNoAccionable"]
 
@@ -51,6 +57,11 @@ _CUERPO_H = 5.10
 _PIE_H = 0.30
 
 _MIN_PALABRAS_TITULO = 5
+# Con anotaciones al lado, la figura toma esta fracción del ancho útil.
+_FRACCION_FIGURA = 0.66
+
+# Sin esto PowerPoint usa Calibri y el tema no se aplica a nada.
+_FUENTE = "Helvetica Neue"
 
 
 class TituloNoAccionable(ValueError):
@@ -109,6 +120,7 @@ class Deck:
         run = p.add_run()
         run.text = texto
         run.font.size = Pt(size)
+        run.font.name = _FUENTE
         run.font.bold = bold
         run.font.color.rgb = color or self._tinta
         return caja
@@ -165,7 +177,7 @@ class Deck:
         s = self._lamina()
         self._texto(s, _MARGEN, _KICKER_Y, _ANCHO_UTIL, _KICKER_H,
                     title, size=13, color=self._suave)
-        alto = max(1.8, 0.55 * len(items) + 0.9)
+        alto = 0.52 * len(items) + 0.6
         self._banda(s, (_ALTO - alto) / 2, alto)
         caja = s.shapes.add_textbox(Inches(_MARGEN), Inches((_ALTO - alto) / 2 + 0.35),
                                     Inches(_ANCHO_UTIL), Inches(alto - 0.7))
@@ -178,6 +190,7 @@ class Deck:
             run = p.add_run()
             run.text = item
             run.font.size = Pt(17)
+            run.font.name = _FUENTE
             run.font.color.rgb = RGBColor.from_string("FFFFFF")
         self._pie(s)
         return s
@@ -212,26 +225,73 @@ class Deck:
         s = self._lamina()
         self._encabezado(s, kicker, title)
 
+        anotaciones = list(callouts or [])
+        # Con anotaciones, la figura cede el tercio derecho: encima taparía
+        # los datos, que es exactamente lo que un callout no debe hacer.
+        fraccion = _FRACCION_FIGURA if (image is not None and anotaciones) else 1.0
+
         if image is not None:
-            ruta = Path(image)
-            if not ruta.exists():
-                raise FileNotFoundError(f"no encuentro la figura: {ruta}")
-            s.shapes.add_picture(str(ruta), Inches(_MARGEN), Inches(_CUERPO_Y),
-                                 height=Inches(_CUERPO_H))
+            self._imagen(s, image, fraccion=fraccion)
         elif body:
             self._texto(s, _MARGEN, _CUERPO_Y, _ANCHO_UTIL, _CUERPO_H, body, size=14)
 
-        for texto, fx, fy in (callouts or []):
-            self._callout(s, texto, fx, fy)
-
+        self._anotar(s, anotaciones, fraccion)
         self._pie(s)
         return s
 
+    def _anotar(self, s, anotaciones, fraccion):
+        """Coloca las anotaciones apiladas en la columna libre de la derecha.
+
+        Acepta texto suelto —y entonces las posiciona solas— o la forma
+        `(texto, x, y)` para cuando quieras ubicarlas a mano.
+        """
+        if not anotaciones:
+            return
+        if fraccion >= 1.0:
+            for a in anotaciones:
+                texto, fx, fy = a if isinstance(a, (tuple, list)) else (a, 0.6, 0.05)
+                self._callout(s, texto, fx, fy, ancho=_ANCHO_UTIL * 0.3)
+            return
+
+        ancho = _ANCHO_UTIL * (1 - fraccion) - 0.25
+        x = _MARGEN + _ANCHO_UTIL * fraccion + 0.25
+        y = _CUERPO_Y + 0.15
+        for a in anotaciones:
+            texto = a[0] if isinstance(a, (tuple, list)) else a
+            forma = self._callout_abs(s, texto, x, y, ancho)
+            y += forma.height / 914400 + 0.28
+
+    def _imagen(self, s, image, *, fraccion: float = 1.0):
+        """Encaja la figura en el área de contenido conservando su proporción.
+
+        Escalar solo por altura dejaba la figura a la izquierda y media lámina
+        vacía. Aquí se toma el factor que más limita y se centra el sobrante.
+        """
+        from PIL import Image as _Image
+
+        ruta = Path(image)
+        if not ruta.exists():
+            raise FileNotFoundError(f"no encuentro la figura: {ruta}")
+        with _Image.open(ruta) as im:
+            ancho_px, alto_px = im.size
+        disponible = _ANCHO_UTIL * fraccion
+        proporcion = ancho_px / alto_px
+        ancho, alto = disponible, disponible / proporcion
+        if alto > _CUERPO_H:
+            alto, ancho = _CUERPO_H, _CUERPO_H * proporcion
+        x = _MARGEN + (disponible - ancho) / 2
+        return s.shapes.add_picture(str(ruta), Inches(x), Inches(_CUERPO_Y),
+                                    width=Inches(ancho), height=Inches(alto))
+
     def _callout(self, s, texto: str, fx: float, fy: float, ancho: float = 2.9):
+        return self._callout_abs(s, texto, _MARGEN + fx * _ANCHO_UTIL,
+                                 _CUERPO_Y + fy * _CUERPO_H, ancho)
+
+    def _callout_abs(self, s, texto: str, x: float, y: float, ancho: float):
         from pptx.enum.shapes import MSO_SHAPE
-        x = _MARGEN + fx * _ANCHO_UTIL
-        y = _CUERPO_Y + fy * _CUERPO_H
-        alto = 0.35 + 0.22 * (len(texto) // 40 + 1)
+        caracteres_por_linea = max(18, int(ancho * 15))
+        lineas = len(texto) // caracteres_por_linea + 1
+        alto = 0.30 + 0.21 * lineas
         forma = s.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(x), Inches(y),
                                    Inches(ancho), Inches(alto))
         forma.fill.solid()
@@ -248,6 +308,7 @@ class Deck:
         run = p.add_run()
         run.text = texto
         run.font.size = Pt(11)
+        run.font.name = _FUENTE
         run.font.color.rgb = self._tinta
         return forma
 
@@ -262,6 +323,10 @@ class Deck:
         forma = s.shapes.add_table(filas, cols, Inches(_MARGEN), Inches(_CUERPO_Y),
                                    Inches(_ANCHO_UTIL), Inches(min(_CUERPO_H, 0.36 * filas)))
         tabla = forma.table
+        # El estilo por defecto de Office pinta bandas azules. Se apaga y se
+        # dibuja a mano: encabezado con el acento, filas sobre el fondo.
+        tabla.first_row = False
+        tabla.horz_banding = False
         tabla.cell(0, 0).text = str(recorte.index.name or "")
         for j, col in enumerate(recorte.columns, start=1):
             tabla.cell(0, j).text = str(col)
@@ -269,11 +334,34 @@ class Deck:
             tabla.cell(i, 0).text = str(idx)
             for j, valor in enumerate(fila, start=1):
                 tabla.cell(i, j).text = f"{valor:,.4g}" if isinstance(valor, float) else str(valor)
-        for fila_t in tabla.rows:
-            for celda in fila_t.cells:
+        # Repartir el ancho por el largo del contenido: en partes iguales, el
+        # nombre de una variable queda apretado y un número queda con aire.
+        indices = [str(v) for v in recorte.index]
+        pesos = [max(len(str(recorte.index.name or "")),
+                     *(len(t) for t in indices)) if indices else 6]
+        for col in recorte.columns:
+            textos = [f"{v:,.4g}" if isinstance(v, float) else str(v) for v in recorte[col]]
+            pesos.append(max(len(str(col)), *(len(t) for t in textos)) if textos
+                         else len(str(col)))
+        total = sum(pesos)
+        for col_t, peso in zip(tabla.columns, pesos):
+            col_t.width = Emu(int(Inches(_ANCHO_UTIL) * peso / total))
+
+        numericas = {j for j, col in enumerate(recorte.columns, start=1)
+                     if pd_api_numerica(recorte[col])}
+        blanco = RGBColor.from_string("FFFFFF")
+        for i, fila_t in enumerate(tabla.rows):
+            for j, celda in enumerate(fila_t.cells):
+                celda.fill.solid()
+                celda.fill.fore_color.rgb = self._acento if i == 0 else self._fondo
+                celda.margin_left = celda.margin_right = Inches(0.08)
                 for p in celda.text_frame.paragraphs:
+                    if j in numericas:
+                        p.alignment = PP_ALIGN.RIGHT
                     for run in p.runs:
                         run.font.size = Pt(11)
+                        run.font.name = _FUENTE
+                        run.font.color.rgb = blanco if i == 0 else self._tinta
         self._pie(s)
         return s
 
