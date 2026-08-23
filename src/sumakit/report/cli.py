@@ -193,6 +193,19 @@ def render(fuente: Path | str, *, salida: Path | str | None = None,
     return producido
 
 
+def abrir_configurador() -> int:
+    """Lanza el configurador de tema con Streamlit."""
+    if shutil.which("streamlit") is None:
+        print("El configurador necesita Streamlit:\n"
+              "  uv add 'sumakit[ui]'   o   uv add streamlit", file=sys.stderr)
+        return 1
+    from importlib import resources as _res
+
+    with _res.as_file(_res.files("sumakit.ui")) as raiz:
+        app = Path(raiz) / "configurador.py"
+        return subprocess.run(["streamlit", "run", str(app)]).returncode
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="sumakit", description=__doc__)
     sub = parser.add_subparsers(dest="comando", required=True)
@@ -209,12 +222,16 @@ def main(argv: list[str] | None = None) -> int:
     p_init.add_argument("--tipo", default="ambos",
                         choices=["academico", "negocio", "ambos"])
 
+    sub.add_parser("theme", help="abrir el configurador de tema")
+
     p_render = sub.add_parser("render", help="renderizar un .qmd")
     p_render.add_argument("fuente")
     p_render.add_argument("--salida", default=None)
     p_render.add_argument("--ejecutar", action="store_true")
 
     args = parser.parse_args(argv)
+    if args.comando == "theme":
+        return abrir_configurador()
     if args.comando == "report":
         init(args.destino, notebook=args.notebook, titulo=args.titulo,
              autor=args.autor, force=args.force, esqueleto=not args.sin_esqueleto,

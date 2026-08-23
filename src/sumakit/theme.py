@@ -15,13 +15,20 @@ los pisos de separación: hay que agrupar en "Otros" o facetar.
 from __future__ import annotations
 
 import contextlib
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, field, fields, replace
+from pathlib import Path
 
 import matplotlib as mpl
+import pandas as pd
 from matplotlib.colors import LinearSegmentedColormap
+
+from . import color as _color
 
 __all__ = [
     "Palette",
+    "validate",
+    "load",
+    "save",
     "LIGHT",
     "DARK",
     "active",
@@ -213,3 +220,105 @@ def diverging_cmap(palette: Palette | None = None):
         f"{pal.name}-div",
         [pal.diverging_low, pal.neutral, pal.diverging_high],
     )
+
+
+#: Umbrales de los chequeos. Salen de la práctica establecida en accesibilidad:
+#: 3:1 es el mínimo de WCAG para elementos gráficos, y bajo ΔE 15 dos colores
+#: se confunden incluso con visión normal.
+CONTRASTE_MINIMO = 3.0
+DELTA_E_MINIMO = 15.0
+DELTA_E_CVD_MINIMO = 8.0
+
+
+def validate(palette: Palette | None = None, *, n: int | None = None,
+             all_pairs: bool = False) -> pd.DataFrame:
+    """Revisa si una paleta es usable, en vez de confiar en el ojo.
+
+    Tres chequeos, uno por fila del resultado:
+
+    - **Contraste** de cada color contra la superficie. Bajo 3:1 la marca se
+      pierde en el fondo.
+    - **Separación** entre pares con visión normal. Bajo ΔE 15 dos series se
+      confunden aunque el lector vea todos los colores.
+    - **Daltonismo**: la misma separación tras simular protanopía,
+      deuteranopía y tritanopía. Es el chequeo que nadie hace a ojo, porque
+      requiere ver como no vemos.
+
+    `all_pairs=True` para formas donde todas las series se comparan a la vez
+    —scatter, pairplot—; por defecto solo se revisan los pares adyacentes, que
+    es lo que exigen barras, líneas y apilados.
+    """
+    pal = palette or _active
+    colores = list(pal.categorical[:n] if n else pal.categorical)
+    if len(colores) < 2:
+        raise ValueError("se necesitan al menos 2 colores para validar una paleta")
+
+    pares = ([(i, j) for i in range(len(colores)) for j in range(i + 1, len(colores))]
+             if all_pairs else [(i, i + 1) for i in range(len(colores) - 1)])
+
+    filas = []
+
+    peor = min(colores, key=lambda c: _color.contraste(c, pal.surface))
+    ratio = _color.contraste(peor, pal.surface)
+    filas.append({
+        "chequeo": "contraste con el fondo",
+        "peor_caso": peor,
+        "valor": round(ratio, 2),
+        "umbral": CONTRASTE_MINIMO,
+        "pasa": ratio >= CONTRASTE_MINIMO,
+        "detalle": f"{peor} sobre {pal.surface}"
+                   + ("" if ratio >= CONTRASTE_MINIMO
+                      else " — usable solo con etiquetas directas o tabla"),
+    })
+
+    i, j = min(pares, key=lambda p: _color.delta_e(colores[p[0]], colores[p[1]]))
+    de = _color.delta_e(colores[i], colores[j])
+    filas.append({
+        "chequeo": "separación (visión normal)",
+        "peor_caso": f"{colores[i]} ↔ {colores[j]}",
+        "valor": round(de, 1),
+        "umbral": DELTA_E_MINIMO,
+        "pasa": de >= DELTA_E_MINIMO,
+        "detalle": f"slots {i + 1} y {j + 1}",
+    })
+
+    for tipo in _color.TIPOS_CVD:
+        simulados = [_color.simular_cvd(c, tipo) for c in colores]
+        i, j = min(pares, key=lambda p: _color.delta_e(simulados[p[0]], simulados[p[1]]))
+        de = _color.delta_e(simulados[i], simulados[j])
+        filas.append({
+            "chequeo": f"separación ({tipo})",
+            "peor_caso": f"{colores[i]} ↔ {colores[j]}",
+            "valor": round(de, 1),
+            "umbral": DELTA_E_CVD_MINIMO,
+            "pasa": de >= DELTA_E_CVD_MINIMO,
+            "detalle": f"slots {i + 1} y {j + 1}",
+        })
+
+    return pd.DataFrame(filas)
+
+
+def save(palette: Palette, ruta: str | Path) -> Path:
+    """Escribe la paleta a JSON, para versionarla junto al proyecto."""
+    import json
+    from pathlib import Path as _Path
+
+    destino = _Path(ruta)
+    destino.parent.mkdir(parents=True, exist_ok=True)
+    datos = {campo: (list(valor) if isinstance(valor, tuple) else valor)
+             for campo, valor in vars(palette).items()}
+    destino.write_text(json.dumps(datos, indent=2, ensure_ascii=False), encoding="utf-8")
+    return destino
+
+
+def load(ruta: str | Path) -> Palette:
+    """Lee una paleta guardada por el configurador o por `save`."""
+    import json
+    from pathlib import Path as _Path
+
+    datos = json.loads(_Path(ruta).read_text(encoding="utf-8"))
+    for campo in ("categorical", "sequential", "font_family"):
+        if campo in datos:
+            datos[campo] = tuple(datos[campo])
+    validos = {f.name for f in fields(Palette)}
+    return Palette(**{k: v for k, v in datos.items() if k in validos})
