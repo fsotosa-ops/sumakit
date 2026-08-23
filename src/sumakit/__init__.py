@@ -9,14 +9,17 @@
 
 Las funciones de `profile` y `stats` devuelven DataFrames; las de `plots`
 devuelven `Figure`. Nada dibuja por su cuenta ni muta estado global.
+
+`studio` es el puente al proyecto: publica una de esas tablas y desde ahí
+alimenta el deck y el informe, sin exportar un CSV a mano.
 """
 
-from . import deck, interactive, nb, plots, profile, stats, theme
+from . import deck, studio, interactive, nb, plots, profile, stats, theme
 from .exploration import Exploration, explore
 
 __version__ = "0.1.0"
 __all__ = [
     "explore", "Exploration",
-    "deck", "interactive", "nb", "plots", "profile", "stats", "theme",
+    "deck", "interactive", "nb", "plots", "profile", "stats", "studio", "theme",
     "__version__",
 ]
