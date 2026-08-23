@@ -1,0 +1,63 @@
+{
+  "name": "sumakit-entregables",
+  "displayName": "sumakit · Entregables",
+  "description": "Convierte el análisis en informe académico o deck de negocio sin salir del editor.",
+  "version": "0.1.0",
+  "publisher": "sumadots",
+  "license": "MIT",
+  "engines": { "vscode": "^1.85.0" },
+  "categories": ["Data Science", "Notebooks", "Other"],
+  "main": "./src/extension.js",
+  "activationEvents": ["onStartupFinished"],
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "sumakit",
+          "title": "Entregables",
+          "icon": "media/icono.svg"
+        }
+      ]
+    },
+    "views": {
+      "sumakit": [
+        { "id": "sumakit.entregables", "name": "Proyecto" }
+      ]
+    },
+    "commands": [
+      { "command": "sumakit.cambiarAudiencia", "title": "sumakit: Cambiar audiencia", "icon": "$(arrow-swap)" },
+      { "command": "sumakit.construir", "title": "sumakit: Construir el entregable", "icon": "$(play)" },
+      { "command": "sumakit.abrirSlides", "title": "sumakit: Abrir el deck en Google Slides", "icon": "$(browser)" },
+      { "command": "sumakit.abrirTema", "title": "sumakit: Configurar el tema" },
+      { "command": "sumakit.refrescar", "title": "sumakit: Refrescar", "icon": "$(refresh)" }
+    ],
+    "menus": {
+      "view/title": [
+        { "command": "sumakit.cambiarAudiencia", "when": "view == sumakit.entregables", "group": "navigation@1" },
+        { "command": "sumakit.construir", "when": "view == sumakit.entregables", "group": "navigation@2" },
+        { "command": "sumakit.refrescar", "when": "view == sumakit.entregables", "group": "navigation@3" }
+      ]
+    },
+    "configuration": {
+      "title": "sumakit",
+      "properties": {
+        "sumakit.audiencia": {
+          "type": "string",
+          "enum": ["academia", "negocio"],
+          "default": "negocio",
+          "description": "Qué se construye: informe académico en PDF o deck de negocio."
+        },
+        "sumakit.slidesUrl": {
+          "type": "string",
+          "default": "",
+          "description": "URL de la presentación de Google Slides que se embebe en el editor."
+        },
+        "sumakit.python": {
+          "type": "string",
+          "default": "uv run",
+          "description": "Cómo invocar Python. Por defecto usa uv del proyecto."
+        }
+      }
+    }
+  }
+}
