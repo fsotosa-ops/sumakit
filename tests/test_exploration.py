@@ -1,11 +1,11 @@
 """explore(): una llamada, guiada por las alertas."""
 
 import matplotlib
+
 matplotlib.use("Agg")
 
 import numpy as np
 import pandas as pd
-import pytest
 from matplotlib.figure import Figure
 
 import sumakit
@@ -61,6 +61,7 @@ def test_puede_saltarse_la_busqueda_composicional(df):
 
 def test_no_deja_estado_global_sucio(df):
     import matplotlib.pyplot as plt
+
     from sumakit import theme
     theme.use(theme.LIGHT)
     antes = dict(plt.rcParams)
@@ -102,9 +103,12 @@ def test_la_grilla_queda_detras_de_las_marcas():
 
 
 def test_no_deja_figuras_en_el_registro_de_pyplot(df):
-    """Si quedan abiertas, el backend inline de Jupyter las dibuja de nuevo
-    y el usuario ve cada figura dos veces: una incrustada en el HTML y otra
-    volcada al final de la celda."""
+    """Cerrar las figuras evita que Jupyter las dibuje dos veces.
+
+    Si quedan abiertas, el backend inline las vuelve a dibujar y el usuario ve
+    cada figura dos veces: una incrustada en el HTML y otra volcada al final de
+    la celda.
+    """
     import matplotlib.pyplot as plt
     plt.close("all")
     r = sumakit.explore(df)
@@ -122,8 +126,11 @@ def test_las_figuras_siguen_siendo_usables_tras_cerrarlas(df):
 
 
 def test_las_figuras_no_viajan_dentro_del_html(df):
-    """Incrustadas en base64 se pierden al renderizar a PDF o a PowerPoint:
-    ni LaTeX ni PowerPoint leen un <img> dentro de un blob HTML."""
+    """Las figuras van como archivo, no dentro del HTML.
+
+    Incrustadas en base64 se pierden al renderizar a PDF o a PowerPoint: ni
+    LaTeX ni PowerPoint leen un `<img>` dentro de un blob HTML.
+    """
     r = sumakit.explore(df)
     assert "<img" not in r._repr_html_()
 

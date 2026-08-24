@@ -7,7 +7,6 @@ from matplotlib.figure import Figure
 
 from sumakit import plots, theme
 
-
 # --- regresiones de los bugs encontrados en eda_utils.py --------------------
 
 def test_distributions_con_una_sola_columna(df_una_columna):

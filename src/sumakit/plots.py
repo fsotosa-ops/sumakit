@@ -120,7 +120,10 @@ def distributions(
 
     color = theme.categorical(1)[0]
     fig, axes = _subplots(len(cols), num_rows, num_cols)
-    for ax, col in zip(axes, cols):
+    # `strict=False` a propósito: la rejilla se redondea hacia arriba, así
+    # que `axes` puede ser más largo que `cols`. `_hide_unused` borra los
+    # sobrantes; truncar acá es lo correcto, no un descuido.
+    for ax, col in zip(axes, cols, strict=False):
         serie = df[col].dropna()
         # Una columna constante no tiene densidad que estimar: seaborn avisa y
         # dibuja un panel vacío. Es más honesto decirlo.
@@ -172,7 +175,10 @@ def boxes(
 
     single = theme.categorical(1)[0]
     fig, axes = _subplots(len(cols), num_rows, num_cols)
-    for ax, col in zip(axes, cols):
+    # `strict=False` a propósito: la rejilla se redondea hacia arriba, así
+    # que `axes` puede ser más largo que `cols`. `_hide_unused` borra los
+    # sobrantes; truncar acá es lo correcto, no un descuido.
+    for ax, col in zip(axes, cols, strict=False):
         if by is None:
             sns.boxplot(data=df, y=col, ax=ax, color=single, width=0.4, fliersize=3)
         else:
@@ -261,7 +267,8 @@ def scaling_comparison(
 
     c_before, c_after = theme.categorical(2)
     fig, axes = _subplots(len(features), num_rows, num_cols)
-    for ax, feat in zip(axes, features):
+    # Misma razón que arriba: sobran ejes y se borran después.
+    for ax, feat in zip(axes, features, strict=False):
         sns.kdeplot(data=original[feat].dropna(), ax=ax, fill=True, alpha=0.3,
                     color=c_before, linewidth=2, label="Original")
         sns.kdeplot(data=scaled[feat].dropna(), ax=ax, fill=True, alpha=0.3,

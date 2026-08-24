@@ -41,12 +41,19 @@ class ErrorDeStudio(RuntimeError):
 
 @dataclass
 class Conexion:
+    """Dónde publicar y con qué clave.
+
+    Se guarda en un global de módulo tras `conectar()` porque el uso natural es
+    un notebook: conectar una vez arriba y publicar varias veces abajo.
+    """
+
     clave: str
     url: str = URL_POR_DEFECTO
     clave_publica: str = CLAVE_PUBLICA_POR_DEFECTO
 
     @property
     def endpoint(self) -> str:
+        """La URL de las funciones RPC, que es lo único que este puente llama."""
         return f"{self.url.rstrip('/')}/rest/v1/rpc"
 
 
@@ -193,9 +200,9 @@ def publicar(tabla: pd.DataFrame, nombre: str) -> dict:
 def publicar_varias(tablas: dict[str, pd.DataFrame]) -> list[dict]:
     """Publica varias de una vez. Útil al final de un EDA.
 
-        studio.publicar_varias({
-            "alertas": profile.alerts(df),
-            "distribuciones": stats.distribution_report(df),
-        })
+    studio.publicar_varias({
+        "alertas": profile.alerts(df),
+        "distribuciones": stats.distribution_report(df),
+    })
     """
     return [publicar(tabla, nombre) for nombre, tabla in tablas.items()]

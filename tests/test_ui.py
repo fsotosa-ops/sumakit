@@ -5,6 +5,7 @@ que producen las previsualizaciones sí: son las que pueden romperse.
 """
 
 import matplotlib
+
 matplotlib.use("Agg")
 
 import pytest

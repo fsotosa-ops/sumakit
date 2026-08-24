@@ -77,8 +77,11 @@ def contraste(uno: str, otro: str) -> float:
 
 
 def a_lab(color: str | np.ndarray) -> np.ndarray:
-    """Convierte a CIE L*a*b*, donde la distancia euclidiana aproxima la
-    diferencia que percibe el ojo."""
+    """Convierte a CIE L*a*b*.
+
+    Es el espacio donde la distancia euclidiana aproxima la diferencia que
+    percibe el ojo, y por eso se usa para medir si dos colores se distinguen.
+    """
     rgb = a_rgb(color) if isinstance(color, str) else np.asarray(color, dtype=float)
     xyz = _M_XYZ @ _lineal(rgb) / _BLANCO_D65
     f = np.where(xyz > 0.008856, np.cbrt(xyz), 7.787 * xyz + 16 / 116)

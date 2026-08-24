@@ -207,6 +207,14 @@ def abrir_configurador() -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
+    """Punto de entrada del ejecutable `sumakit`.
+
+    Args:
+        argv: Argumentos de línea de órdenes. `None` usa los de `sys.argv`.
+
+    Returns:
+        El código de salida del proceso.
+    """
     parser = argparse.ArgumentParser(prog="sumakit", description=__doc__)
     sub = parser.add_subparsers(dest="comando", required=True)
 

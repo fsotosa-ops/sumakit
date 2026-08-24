@@ -45,7 +45,7 @@ def test_metodo_desconocido_falla():
 
 def test_high_correlation_pairs_encuentra_la_redundancia(df):
     out = stats.high_correlation_pairs(df, threshold=0.95)
-    pares = {frozenset([a, b]) for a, b in zip(out["feature_a"], out["feature_b"])}
+    pares = {frozenset([a, b]) for a, b in zip(out["feature_a"], out["feature_b"], strict=True)}
     assert frozenset(["normal", "copia_normal"]) in pares
 
 
