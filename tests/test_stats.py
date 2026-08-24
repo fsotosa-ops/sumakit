@@ -70,6 +70,7 @@ def test_target_report_incluye_informacion_mutua(df):
 def test_target_report_funciona_sin_sklearn(df, monkeypatch):
     """Sin scikit-learn debe seguir dando la correlación, no reventar."""
     import builtins
+
     real = builtins.__import__
 
     def sin_sklearn(nombre, *a, **k):
@@ -95,7 +96,7 @@ def test_target_report_objetivo_no_numerico(df):
 def test_correlations_spearman_vs_pearson():
     """En una relación monótona no lineal, spearman es 1 y pearson no."""
     x = np.arange(1, 30)
-    d = pd.DataFrame({"x": x, "y": x ** 4})
+    d = pd.DataFrame({"x": x, "y": x**4})
     assert stats.correlations(d, method="spearman").loc["x", "y"] == pytest.approx(1.0)
     assert stats.correlations(d, method="pearson").loc["x", "y"] < 0.99
 
@@ -109,19 +110,25 @@ def test_target_report_excluye_constantes(df):
 
 # --- datos composicionales --------------------------------------------------
 
+
 @pytest.fixture
 def df_composicional():
     """Dos grupos que suman 1, más ruido que no forma parte de ninguno."""
     rng = np.random.default_rng(7)
     n = 400
-    a = rng.dirichlet([2, 3, 5], n)          # tres partes que suman 1
-    b = rng.dirichlet([1, 1], n)             # dos partes que suman 1
-    return pd.DataFrame({
-        "manana": a[:, 0], "tarde": a[:, 1], "noche": a[:, 2],
-        "nacional": b[:, 0], "internacional": b[:, 1],
-        "monto": rng.exponential(500, n),
-        "n_trx": rng.integers(1, 90, n),
-    })
+    a = rng.dirichlet([2, 3, 5], n)  # tres partes que suman 1
+    b = rng.dirichlet([1, 1], n)  # dos partes que suman 1
+    return pd.DataFrame(
+        {
+            "manana": a[:, 0],
+            "tarde": a[:, 1],
+            "noche": a[:, 2],
+            "nacional": b[:, 0],
+            "internacional": b[:, 1],
+            "monto": rng.exponential(500, n),
+            "n_trx": rng.integers(1, 90, n),
+        }
+    )
 
 
 def test_encuentra_los_grupos_que_suman_uno(df_composicional):
@@ -168,19 +175,24 @@ def test_una_sola_columna_no_es_grupo():
 
 # --- el consejo depende de la naturaleza de la variable, no solo de su forma --
 
+
 @pytest.fixture
 def df_mixto():
     """Composicionales, una acotada suelta, magnitudes y un identificador."""
     rng = np.random.default_rng(11)
     n = 400
     a = rng.dirichlet([2, 3, 5], n)
-    return pd.DataFrame({
-        "id": np.arange(n),
-        "manana": a[:, 0], "tarde": a[:, 1], "noche": a[:, 2],
-        "tasa_suelta": rng.uniform(0, 1, n),
-        "monto": rng.exponential(5000, n),
-        "edad": rng.integers(18, 80, n).astype(float),
-    })
+    return pd.DataFrame(
+        {
+            "id": np.arange(n),
+            "manana": a[:, 0],
+            "tarde": a[:, 1],
+            "noche": a[:, 2],
+            "tasa_suelta": rng.uniform(0, 1, n),
+            "monto": rng.exponential(5000, n),
+            "edad": rng.integers(18, 80, n).astype(float),
+        }
+    )
 
 
 def test_no_sugiere_escalar_lo_composicional(df_mixto):
@@ -225,7 +237,7 @@ def test_distingue_masa_en_cero_de_cola_pesada():
     """Escalar no arregla una masa de ceros; decirlo evita un consejo inútil."""
     rng = np.random.default_rng(3)
     x = rng.exponential(2, 1000) * 100
-    x[: 700] = 0.0                      # 70% de ceros
+    x[:700] = 0.0  # 70% de ceros
     d = pd.DataFrame({"con_ceros": x})
     out = stats.distribution_report(d, compositional=False)
     assert "masa en cero" in out.loc["con_ceros", "reason"]

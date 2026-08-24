@@ -12,14 +12,16 @@ def df():
     """Dataset sintético con las patologías que un EDA debe detectar."""
     rng = np.random.default_rng(0)
     n = 300
-    data = pd.DataFrame({
-        "normal": rng.normal(10, 2, n),
-        "sesgada": rng.exponential(2, n),          # asimetría alta -> robust
-        "constante": np.ones(n),
-        "con_nulos": rng.normal(0, 1, n),
-        "categoria": rng.choice(["a", "b", "c"], n, p=[0.8, 0.15, 0.05]),
-    })
-    data.loc[:49, "con_nulos"] = np.nan            # bloque contiguo de nulos
+    data = pd.DataFrame(
+        {
+            "normal": rng.normal(10, 2, n),
+            "sesgada": rng.exponential(2, n),  # asimetría alta -> robust
+            "constante": np.ones(n),
+            "con_nulos": rng.normal(0, 1, n),
+            "categoria": rng.choice(["a", "b", "c"], n, p=[0.8, 0.15, 0.05]),
+        }
+    )
+    data.loc[:49, "con_nulos"] = np.nan  # bloque contiguo de nulos
     data["copia_normal"] = data["normal"] * 2 + 1  # colinealidad perfecta
     data["objetivo"] = data["normal"] * 0.5 + rng.normal(0, 0.5, n)
     return data

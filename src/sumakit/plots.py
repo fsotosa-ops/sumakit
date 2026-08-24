@@ -81,9 +81,7 @@ def _subplots(n: int, num_rows, num_cols, panel=(4.2, 3.2)) -> tuple[Figure, np.
     original fallaba con datasets de una sola columna numérica.
     """
     rows, cols = _grid(n, num_rows, num_cols)
-    fig, axes = plt.subplots(
-        rows, cols, figsize=(panel[0] * cols, panel[1] * rows), squeeze=False
-    )
+    fig, axes = plt.subplots(rows, cols, figsize=(panel[0] * cols, panel[1] * rows), squeeze=False)
     return fig, axes.flatten()
 
 
@@ -99,8 +97,15 @@ def _empty_figure(message: str) -> Figure:
     mitad de un notebook: el análisis sigue y el vacío queda a la vista.
     """
     fig, ax = plt.subplots(figsize=(6, 1.6))
-    ax.text(0.5, 0.5, message, ha="center", va="center",
-            color=theme.active().text_secondary, fontsize=10)
+    ax.text(
+        0.5,
+        0.5,
+        message,
+        ha="center",
+        va="center",
+        color=theme.active().text_secondary,
+        fontsize=10,
+    )
     ax.set_axis_off()
     return fig
 
@@ -128,8 +133,16 @@ def distributions(
         # Una columna constante no tiene densidad que estimar: seaborn avisa y
         # dibuja un panel vacío. Es más honesto decirlo.
         if serie.nunique() <= 1:
-            ax.text(0.5, 0.5, "constante", transform=ax.transAxes, ha="center",
-                    va="center", color=theme.active().text_secondary, fontsize=9)
+            ax.text(
+                0.5,
+                0.5,
+                "constante",
+                transform=ax.transAxes,
+                ha="center",
+                va="center",
+                color=theme.active().text_secondary,
+                fontsize=9,
+            )
             ax.set_xticks([])
             ax.set_yticks([])
         elif _is_discrete(serie):
@@ -182,8 +195,17 @@ def boxes(
         if by is None:
             sns.boxplot(data=df, y=col, ax=ax, color=single, width=0.4, fliersize=3)
         else:
-            sns.boxplot(data=df, x=by, y=col, hue=by, ax=ax, palette=palette,
-                        width=0.6, fliersize=3, legend=False)
+            sns.boxplot(
+                data=df,
+                x=by,
+                y=col,
+                hue=by,
+                ax=ax,
+                palette=palette,
+                width=0.6,
+                fliersize=3,
+                legend=False,
+            )
         ax.set_title(col)
         ax.set_ylabel("")
     _hide_unused(fig, axes, len(cols))
@@ -229,11 +251,16 @@ def correlation_heatmap(
         corr,
         mask=mask,
         cmap=theme.diverging_cmap(),
-        vmin=-1, vmax=1, center=0,
-        annot=annot, fmt=".2f",
+        vmin=-1,
+        vmax=1,
+        center=0,
+        annot=annot,
+        fmt=".2f",
         annot_kws={"size": 8},
-        linewidths=2, linecolor=theme.active().surface,
-        square=True, cbar_kws={"shrink": 0.6, "label": f"r ({method})"},
+        linewidths=2,
+        linecolor=theme.active().surface,
+        square=True,
+        cbar_kws={"shrink": 0.6, "label": f"r ({method})"},
         ax=ax,
     )
     ax.set_title(title)
@@ -269,10 +296,24 @@ def scaling_comparison(
     fig, axes = _subplots(len(features), num_rows, num_cols)
     # Misma razón que arriba: sobran ejes y se borran después.
     for ax, feat in zip(axes, features, strict=False):
-        sns.kdeplot(data=original[feat].dropna(), ax=ax, fill=True, alpha=0.3,
-                    color=c_before, linewidth=2, label="Original")
-        sns.kdeplot(data=scaled[feat].dropna(), ax=ax, fill=True, alpha=0.3,
-                    color=c_after, linewidth=2, label="Escalado")
+        sns.kdeplot(
+            data=original[feat].dropna(),
+            ax=ax,
+            fill=True,
+            alpha=0.3,
+            color=c_before,
+            linewidth=2,
+            label="Original",
+        )
+        sns.kdeplot(
+            data=scaled[feat].dropna(),
+            ax=ax,
+            fill=True,
+            alpha=0.3,
+            color=c_after,
+            linewidth=2,
+            label="Escalado",
+        )
         ax.set_title(feat)
         ax.set_xlabel("")
         ax.set_ylabel("")
@@ -298,7 +339,8 @@ def missing_matrix(df: pd.DataFrame, *, title: str = "Patrón de datos faltantes
     fig, ax = plt.subplots(figsize=(max(6.0, 0.6 * len(cols) + 3), 4.5))
     ax.imshow(
         df[cols].isna().to_numpy(dtype=float),
-        aspect="auto", interpolation="nearest",
+        aspect="auto",
+        interpolation="nearest",
         cmap=theme.sequential_cmap(),
     )
     ax.set_xticks(range(len(cols)))
@@ -388,8 +430,9 @@ def ranking(
     fig, ax = plt.subplots(figsize=(7.5, alto))
     ax.barh(serie.index.astype(str), serie.to_numpy(), color=color, height=0.65)
     if highlight is not None:
-        ax.axvline(highlight, color=theme.active().text_secondary,
-                   linewidth=1, linestyle="--", zorder=0)
+        ax.axvline(
+            highlight, color=theme.active().text_secondary, linewidth=1, linestyle="--", zorder=0
+        )
     ax.set_xlabel(xlabel)
     ax.set_title(title)
     ax.grid(axis="y", visible=False)

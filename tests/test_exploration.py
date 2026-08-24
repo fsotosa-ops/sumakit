@@ -63,6 +63,7 @@ def test_no_deja_estado_global_sucio(df):
     import matplotlib.pyplot as plt
 
     from sumakit import theme
+
     theme.use(theme.LIGHT)
     antes = dict(plt.rcParams)
     sumakit.explore(df)
@@ -71,6 +72,7 @@ def test_no_deja_estado_global_sucio(df):
 
 
 # --- ranking ----------------------------------------------------------------
+
 
 def test_ranking_ordena_de_mayor_a_menor():
     s = pd.Series({"a": 1.0, "b": 9.0, "c": 5.0})
@@ -97,6 +99,7 @@ def test_ranking_dibuja_la_referencia():
 def test_la_grilla_queda_detras_de_las_marcas():
     """Una grilla encima de las barras las corta visualmente."""
     from sumakit import theme
+
     theme.use(theme.LIGHT)
     fig = plots.ranking(pd.Series({"a": 1.0, "b": 2.0}))
     assert fig.axes[0].get_axisbelow() is True
@@ -110,6 +113,7 @@ def test_no_deja_figuras_en_el_registro_de_pyplot(df):
     la celda.
     """
     import matplotlib.pyplot as plt
+
     plt.close("all")
     r = sumakit.explore(df)
     assert r.figures, "el caso solo tiene sentido si se generaron figuras"
@@ -118,6 +122,7 @@ def test_no_deja_figuras_en_el_registro_de_pyplot(df):
 
 def test_las_figuras_siguen_siendo_usables_tras_cerrarlas(df):
     import io
+
     r = sumakit.explore(df)
     fig = next(iter(r.figures.values()))
     buf = io.BytesIO()
@@ -139,10 +144,12 @@ def test_las_figuras_se_emiten_como_salidas_propias(df, monkeypatch):
     """Incrustadas en el HTML se pierden al renderizar a PDF o PowerPoint."""
     emitidos = []
     import IPython.display as ipd
+
     monkeypatch.setattr(ipd, "display", lambda obj: emitidos.append(obj))
     r = sumakit.explore(df)
     r._ipython_display_()
     from matplotlib.figure import Figure
+
     figuras = [o for o in emitidos if isinstance(o, Figure)]
     assert len(figuras) == len(r.figures), "cada figura debe ser su propia salida"
 

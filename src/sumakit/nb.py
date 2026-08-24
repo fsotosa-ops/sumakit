@@ -30,9 +30,14 @@ def adaptive_float(v: float) -> str:
     return f"{v:.4g}"
 
 
-def setup(*, seed: int | None = 42, palette: theme.Palette = theme.LIGHT,
-          max_rows: int = 60, max_columns: int = 40,
-          float_format=adaptive_float) -> None:
+def setup(
+    *,
+    seed: int | None = 42,
+    palette: theme.Palette = theme.LIGHT,
+    max_rows: int = 60,
+    max_columns: int = 40,
+    float_format=adaptive_float,
+) -> None:
     """Fija semillas, aplica el tema y ajusta la impresión de pandas.
 
     La semilla es lo que separa "me dio 0.83" de "da 0.83". Si `seed` es None

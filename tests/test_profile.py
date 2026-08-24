@@ -63,10 +63,12 @@ def test_duplicates_devuelve_dataframe_de_una_fila():
 
 def test_duplicates_se_puede_concatenar_por_corte():
     d = pd.DataFrame({"id": [1, 1, 2], "v": ["a", "b", "c"]})
-    tabla = pd.concat([
-        profile.duplicates(d, label="todo"),
-        profile.duplicates(d, ["id"], label="llave"),
-    ])
+    tabla = pd.concat(
+        [
+            profile.duplicates(d, label="todo"),
+            profile.duplicates(d, ["id"], label="llave"),
+        ]
+    )
     assert list(tabla.index) == ["todo", "llave"]
     assert tabla.loc["llave", "grupos"] == 1
 
@@ -74,9 +76,9 @@ def test_duplicates_se_puede_concatenar_por_corte():
 def test_duplicates_cuenta_grupos_y_el_mayor():
     d = pd.DataFrame({"k": ["a", "a", "a", "b", "b", "c"]})
     out = profile.duplicates(d, ["k"]).iloc[0]
-    assert out["grupos"] == 2          # a y b
-    assert out["mayor_grupo"] == 3       # a aparece tres veces
-    assert out["sobrantes"] == 3      # dos de 'a' y una de 'b'
+    assert out["grupos"] == 2  # a y b
+    assert out["mayor_grupo"] == 3  # a aparece tres veces
+    assert out["sobrantes"] == 3  # dos de 'a' y una de 'b'
     assert out["filas_tras_deduplicar"] == 3
 
 
@@ -87,12 +89,13 @@ def test_duplicates_columna_inexistente():
 
 # --- ver los duplicados -----------------------------------------------------
 
+
 def test_duplicated_rows_etiqueta_grupo_y_tamaño():
     d = pd.DataFrame({"k": ["a", "a", "b", "b", "b", "c"], "v": range(6)})
     out = profile.duplicated_rows(d, ["k"])
     assert list(out.columns[:2]) == ["_grupo", "_tamaño"]
-    assert len(out) == 5                      # 'c' no se repite
-    assert out.iloc[0]["_tamaño"] == 3        # el grupo mayor va primero
+    assert len(out) == 5  # 'c' no se repite
+    assert out.iloc[0]["_tamaño"] == 3  # el grupo mayor va primero
 
 
 def test_duplicated_rows_mantiene_los_grupos_juntos():
@@ -121,6 +124,7 @@ def test_constant_columns(df):
 
 # --- alertas ----------------------------------------------------------------
 
+
 def test_alerts_ordena_por_gravedad(df):
     out = profile.alerts(df)
     severidades = list(out["severidad"])
@@ -146,6 +150,7 @@ def test_alerts_detecta_colinealidad(df):
 
 def test_alerts_marca_composicional_como_critica():
     import numpy as np
+
     rng = np.random.default_rng(5)
     a = rng.dirichlet([2, 2, 2], 200)
     d = pd.DataFrame({"m": a[:, 0], "t": a[:, 1], "n": a[:, 2]})
@@ -157,6 +162,7 @@ def test_alerts_marca_composicional_como_critica():
 
 def test_alerts_sobre_datos_limpios_no_alarma():
     import numpy as np
+
     rng = np.random.default_rng(2)
     d = pd.DataFrame({"a": rng.normal(0, 1, 200), "b": rng.normal(5, 2, 200)})
     out = profile.alerts(d)
@@ -170,8 +176,10 @@ def test_alerts_puede_saltarse_la_busqueda_composicional(df):
 
 # --- estilo -----------------------------------------------------------------
 
+
 def test_styled_devuelve_un_styler_no_un_dataframe(df):
     from pandas.io.formats.style import Styler
+
     st = profile.styled(profile.overview(df))
     assert isinstance(st, Styler)
 
@@ -189,20 +197,24 @@ def test_las_funciones_siguen_devolviendo_dataframes(df):
 
 # --- formato de flotantes ---------------------------------------------------
 
+
 def test_formato_adaptativo_no_usa_notacion_cientifica():
     from sumakit.nb import adaptive_float
+
     assert adaptive_float(1234567.0) == "1,234,567"
     assert adaptive_float(45678.9) == "45,679"
 
 
 def test_formato_adaptativo_conserva_las_proporciones_chicas():
     from sumakit.nb import adaptive_float
+
     assert adaptive_float(0.000123) == "0.000123"
     assert adaptive_float(0.4567) == "0.4567"
 
 
 def test_formato_adaptativo_casos_limite():
     from sumakit.nb import adaptive_float
+
     assert adaptive_float(0.0) == "0"
     assert adaptive_float(12.5) == "12.50"
     assert adaptive_float(float("nan")) == "nan"
@@ -210,9 +222,11 @@ def test_formato_adaptativo_casos_limite():
 
 # --- tablas que sobreviven al PDF -------------------------------------------
 
+
 def test_as_markdown_devuelve_markdown_no_html():
     """Un DataFrame se emite como HTML, y Pandoc lo vuelve un tabular rígido."""
     from IPython.display import Markdown
+
     salida = profile.as_markdown(pd.DataFrame({"a": [1, 2]}, index=["x", "y"]))
     assert isinstance(salida, Markdown)
     texto = salida.data

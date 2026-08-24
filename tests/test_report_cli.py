@@ -4,7 +4,6 @@ La prueba que importa es que funcione en un directorio recién creado que no
 sabe nada del proyecto donde nació.
 """
 
-
 import pytest
 import yaml
 
@@ -20,9 +19,7 @@ def test_instala_las_extensiones_en_un_directorio_ajeno(tmp_path):
 
 def test_la_extension_declara_el_formato_pdf(tmp_path):
     cli.init(tmp_path, esqueleto=False)
-    spec = yaml.safe_load(
-        (tmp_path / "_extensions/sumakit/academico/_extension.yml").read_text()
-    )
+    spec = yaml.safe_load((tmp_path / "_extensions/sumakit/academico/_extension.yml").read_text())
     formatos = spec["contributes"]["formats"]
     assert "pdf" in formatos
     assert formatos["pdf"]["number-sections"] is True
@@ -67,6 +64,7 @@ def test_el_preambulo_trae_booktabs_y_el_acento(tmp_path):
 def test_el_acento_del_preambulo_coincide_con_la_paleta(tmp_path):
     """Si divergen, el PDF y los gráficos dejan de ser el mismo sistema."""
     from sumakit import theme
+
     cli.init(tmp_path, esqueleto=False)
     tex = (tmp_path / "_extensions/sumakit/academico/preambulo.tex").read_text()
     esperado = theme.LIGHT.categorical[0].lstrip("#").upper()

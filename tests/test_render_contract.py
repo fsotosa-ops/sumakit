@@ -52,8 +52,11 @@ def _celda(fuente: str, etiqueta: str | None = None) -> dict:
         fuente = f"#| label: {etiqueta}\n{fuente}"
     lineas = fuente.split("\n")
     return {
-        "cell_type": "code", "id": uuid.uuid4().hex[:8], "execution_count": None,
-        "metadata": {}, "outputs": [],
+        "cell_type": "code",
+        "id": uuid.uuid4().hex[:8],
+        "execution_count": None,
+        "metadata": {},
+        "outputs": [],
         "source": [linea + "\n" for linea in lineas[:-1]] + [lineas[-1]],
     }
 
@@ -73,7 +76,8 @@ def _escribir_notebook(destino: Path) -> Path:
             "kernelspec": {"display_name": "Python 3", "language": "python", "name": "python3"},
             "language_info": {"name": "python", "version": "3.13"},
         },
-        "nbformat": 4, "nbformat_minor": 5,
+        "nbformat": 4,
+        "nbformat_minor": 5,
     }
     ruta = destino / "contrato.ipynb"
     ruta.write_text(json.dumps(nb), encoding="utf-8")
@@ -83,7 +87,9 @@ def _escribir_notebook(destino: Path) -> Path:
 def _render(ruta: Path, formato: str) -> Path:
     r = subprocess.run(
         [quarto, "render", str(ruta), "--to", formato, "--execute"],
-        capture_output=True, text=True, cwd=ruta.parent,
+        capture_output=True,
+        text=True,
+        cwd=ruta.parent,
     )
     if r.returncode != 0:
         pytest.fail(f"quarto render --to {formato} falló:\n{r.stderr[-1500:]}")
@@ -124,8 +130,7 @@ def test_las_tablas_se_convierten_a_latex(proyecto):
     buscar "tabular" en sus bytes crudos no encuentra nada aunque la tabla esté.
     """
     tex = _render(proyecto, "latex").read_text(encoding="utf-8", errors="ignore")
-    assert "tabular" in tex or "longtable" in tex, \
-        "ninguna tabla se convirtió a LaTeX"
+    assert "tabular" in tex or "longtable" in tex, "ninguna tabla se convirtió a LaTeX"
 
 
 @lento

@@ -34,6 +34,7 @@ def test_la_previsualizacion_no_ensucia_el_tema_activo():
 
 def test_la_lamina_de_ejemplo_respeta_la_geometria_del_deck():
     from sumakit import deck
+
     fig = configurador._lamina_ejemplo(theme.LIGHT)
     ax = fig.axes[0]
     assert ax.get_xlim() == (0, 13.333), "debe usar el lienzo 16:9 del deck"
@@ -47,13 +48,21 @@ def test_la_lamina_usa_el_fondo_de_la_paleta():
 
 def test_serializar_recorre_todos_los_campos_de_color():
     datos = configurador._serializar(theme.LIGHT)
-    for campo in ("categorical", "surface", "text_primary", "grid",
-                  "diverging_low", "diverging_high", "neutral"):
+    for campo in (
+        "categorical",
+        "surface",
+        "text_primary",
+        "grid",
+        "diverging_low",
+        "diverging_high",
+        "neutral",
+    ):
         assert campo in datos
 
 
 def test_lo_serializado_se_puede_volver_a_cargar(tmp_path):
     import json
+
     ruta = tmp_path / "t.json"
     ruta.write_text(json.dumps(configurador._serializar(theme.DARK)), encoding="utf-8")
     leida = theme.load(ruta)

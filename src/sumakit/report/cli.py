@@ -59,7 +59,7 @@ d.save(AQUI / ".." / "entrega" / "negocio.pptx")
 print("deck generado")
 '''
 
-_ESQUELETO = '''---
+_ESQUELETO = """---
 title: "{titulo}"
 author: "{autor}"
 date: today
@@ -95,12 +95,19 @@ profile.as_markdown(stats.sum_constant_groups(df), index=False)
 
 Y recuerda que `embed` toma los outputs **guardados** del notebook: si cambias
 una celda, hay que re-ejecutarlo para que el informe lo refleje.
-'''
+"""
 
 
-def init(destino: Path | str = ".", *, notebook: str = "notebook.ipynb",
-         titulo: str = "Informe", autor: str = "", force: bool = False,
-         esqueleto: bool = True, tipo: str = "ambos") -> Path:
+def init(
+    destino: Path | str = ".",
+    *,
+    notebook: str = "notebook.ipynb",
+    titulo: str = "Informe",
+    autor: str = "",
+    force: bool = False,
+    esqueleto: bool = True,
+    tipo: str = "ambos",
+) -> Path:
     """Instala los formatos en un proyecto y siembra los esqueletos.
 
     `tipo` elige qué caminos sembrar: `academico` (PDF vía LaTeX), `negocio`
@@ -142,7 +149,8 @@ def init(destino: Path | str = ".", *, notebook: str = "notebook.ipynb",
             print(f"  = {script.name} (ya existe)")
         else:
             script.write_text(
-                _ESQUELETO_NEGOCIO.format(titulo=titulo, autor=autor), encoding="utf-8")
+                _ESQUELETO_NEGOCIO.format(titulo=titulo, autor=autor), encoding="utf-8"
+            )
             print(f"  + {script.name}")
 
     if esqueleto and tipo in {"academico", "ambos"}:
@@ -163,8 +171,7 @@ def init(destino: Path | str = ".", *, notebook: str = "notebook.ipynb",
     return destino
 
 
-def render(fuente: Path | str, *, salida: Path | str | None = None,
-           ejecutar: bool = False) -> Path:
+def render(fuente: Path | str, *, salida: Path | str | None = None, ejecutar: bool = False) -> Path:
     """Renderiza un `.qmd` con Quarto y deja el resultado donde corresponda."""
     fuente = Path(fuente).resolve()
     if not fuente.exists():
@@ -173,8 +180,7 @@ def render(fuente: Path | str, *, salida: Path | str | None = None,
     quarto = shutil.which("quarto")
     if quarto is None:
         raise RuntimeError(
-            "Quarto no está instalado. Instálalo con `uv add --dev quarto-cli` "
-            "o desde quarto.org."
+            "Quarto no está instalado. Instálalo con `uv add --dev quarto-cli` o desde quarto.org."
         )
 
     orden = [quarto, "render", str(fuente)]
@@ -196,8 +202,10 @@ def render(fuente: Path | str, *, salida: Path | str | None = None,
 def abrir_configurador() -> int:
     """Lanza el configurador de tema con Streamlit."""
     if shutil.which("streamlit") is None:
-        print("El configurador necesita Streamlit:\n"
-              "  uv add 'sumakit[ui]'   o   uv add streamlit", file=sys.stderr)
+        print(
+            "El configurador necesita Streamlit:\n  uv add 'sumakit[ui]'   o   uv add streamlit",
+            file=sys.stderr,
+        )
         return 1
     from importlib import resources as _res
 
@@ -227,8 +235,7 @@ def main(argv: list[str] | None = None) -> int:
     p_init.add_argument("--autor", default="")
     p_init.add_argument("--force", action="store_true")
     p_init.add_argument("--sin-esqueleto", action="store_true")
-    p_init.add_argument("--tipo", default="ambos",
-                        choices=["academico", "negocio", "ambos"])
+    p_init.add_argument("--tipo", default="ambos", choices=["academico", "negocio", "ambos"])
 
     sub.add_parser("theme", help="abrir el configurador de tema")
 
@@ -241,9 +248,15 @@ def main(argv: list[str] | None = None) -> int:
     if args.comando == "theme":
         return abrir_configurador()
     if args.comando == "report":
-        init(args.destino, notebook=args.notebook, titulo=args.titulo,
-             autor=args.autor, force=args.force, esqueleto=not args.sin_esqueleto,
-             tipo=args.tipo)
+        init(
+            args.destino,
+            notebook=args.notebook,
+            titulo=args.titulo,
+            autor=args.autor,
+            force=args.force,
+            esqueleto=not args.sin_esqueleto,
+            tipo=args.tipo,
+        )
     else:
         destino = render(args.fuente, salida=args.salida, ejecutar=args.ejecutar)
         print(f"  -> {destino}")

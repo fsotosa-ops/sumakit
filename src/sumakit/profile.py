@@ -32,8 +32,17 @@ def overview(df: pd.DataFrame) -> pd.DataFrame:
     """
     if df.shape[1] == 0:
         return pd.DataFrame(
-            columns=["dtype", "n_missing", "pct_missing", "n_unique", "pct_unique",
-                     "n_zeros", "pct_zeros", "memory_kb", "is_constant"]
+            columns=[
+                "dtype",
+                "n_missing",
+                "pct_missing",
+                "n_unique",
+                "pct_unique",
+                "n_zeros",
+                "pct_zeros",
+                "memory_kb",
+                "is_constant",
+            ]
         )
 
     n = len(df)
@@ -46,17 +55,19 @@ def overview(df: pd.DataFrame) -> pd.DataFrame:
             n_zeros = int((s == 0).sum())
         else:
             n_zeros = 0
-        rows.append({
-            "dtype": str(s.dtype),
-            "n_missing": n_missing,
-            "pct_missing": round(100 * n_missing / n, 2) if n else 0.0,
-            "n_unique": n_unique,
-            "pct_unique": round(100 * n_unique / n, 2) if n else 0.0,
-            "n_zeros": n_zeros,
-            "pct_zeros": round(100 * n_zeros / n, 2) if n else 0.0,
-            "memory_kb": round(s.memory_usage(deep=True) / 1024, 1),
-            "is_constant": n_unique <= 1,
-        })
+        rows.append(
+            {
+                "dtype": str(s.dtype),
+                "n_missing": n_missing,
+                "pct_missing": round(100 * n_missing / n, 2) if n else 0.0,
+                "n_unique": n_unique,
+                "pct_unique": round(100 * n_unique / n, 2) if n else 0.0,
+                "n_zeros": n_zeros,
+                "pct_zeros": round(100 * n_zeros / n, 2) if n else 0.0,
+                "memory_kb": round(s.memory_usage(deep=True) / 1024, 1),
+                "is_constant": n_unique <= 1,
+            }
+        )
     return pd.DataFrame(rows, index=pd.Index(df.columns, name="column"))
 
 
@@ -68,10 +79,12 @@ def missing(df: pd.DataFrame, *, only_missing: bool = True) -> pd.DataFrame:
     """
     n = len(df)
     counts = df.isna().sum()
-    out = pd.DataFrame({
-        "n_missing": counts.astype(int),
-        "pct_missing": (100 * counts / n).round(2) if n else 0.0,
-    })
+    out = pd.DataFrame(
+        {
+            "n_missing": counts.astype(int),
+            "pct_missing": (100 * counts / n).round(2) if n else 0.0,
+        }
+    )
     out.index.name = "column"
     if only_missing:
         out = out[out["n_missing"] > 0]
@@ -93,12 +106,14 @@ def cardinality(df: pd.DataFrame, *, rare_threshold: float = 1.0) -> pd.DataFram
     for col in cat_cols:
         vc = df[col].value_counts(dropna=True)
         pct = 100 * vc / n if n else vc
-        rows.append({
-            "n_levels": int(vc.size),
-            "top_level": vc.index[0] if vc.size else None,
-            "pct_top": round(float(pct.iloc[0]), 2) if vc.size else 0.0,
-            "n_rare_levels": int((pct < rare_threshold).sum()),
-        })
+        rows.append(
+            {
+                "n_levels": int(vc.size),
+                "top_level": vc.index[0] if vc.size else None,
+                "pct_top": round(float(pct.iloc[0]), 2) if vc.size else 0.0,
+                "n_rare_levels": int((pct < rare_threshold).sum()),
+            }
+        )
     return pd.DataFrame(rows, index=pd.Index(cat_cols, name="column"))
 
 
@@ -235,19 +250,25 @@ def alerts(
     hallazgos: list[dict] = []
 
     def añadir(severidad, chequeo, columnas, mensaje):
-        hallazgos.append({
-            "severidad": severidad,
-            "chequeo": chequeo,
-            "columnas": ", ".join(columnas) if isinstance(columnas, (list, tuple)) else columnas,
-            "mensaje": mensaje,
-        })
+        hallazgos.append(
+            {
+                "severidad": severidad,
+                "chequeo": chequeo,
+                "columnas": ", ".join(columnas)
+                if isinstance(columnas, (list, tuple))
+                else columnas,
+                "mensaje": mensaje,
+            }
+        )
 
     # --- dependencia lineal exacta: rompe clustering, PCA y regresión --------
     if compositional:
         grupos = _stats.sum_constant_groups(df)
         for _, g in grupos.iterrows():
             añadir(
-                "crítica", "composicional", g["columns"],
+                "crítica",
+                "composicional",
+                g["columns"],
                 f"{g['n_columns']} columnas que suman siempre {g['constant']:g}: "
                 "una queda determinada por las otras. Elimina una categoría del "
                 "grupo o aplica una transformación log-ratio antes de modelar.",
@@ -257,55 +278,71 @@ def alerts(
 
     # --- identificadores ----------------------------------------------------
     ids = [
-        c for c in df.columns
-        if ov.loc[c, "n_unique"] == n and n > 0
-        and not pd.api.types.is_float_dtype(df[c])
+        c
+        for c in df.columns
+        if ov.loc[c, "n_unique"] == n and n > 0 and not pd.api.types.is_float_dtype(df[c])
     ]
     if ids:
-        añadir("alta", "identificador", ids,
-               "un valor distinto por fila: es una llave, no una variable. "
-               "Excluir del modelo.")
+        añadir(
+            "alta",
+            "identificador",
+            ids,
+            "un valor distinto por fila: es una llave, no una variable. Excluir del modelo.",
+        )
 
     # --- duplicados ---------------------------------------------------------
     dup = duplicates(df).iloc[0]
     if dup["filas_con_gemelo"]:
-        añadir("alta", "duplicados", "(filas)",
-               f"{dup['filas_con_gemelo']} filas repetidas en {dup['grupos']} grupos "
-               f"({dup['pct_con_gemelo']}%): revisa si el dataset viene de un join.")
+        añadir(
+            "alta",
+            "duplicados",
+            "(filas)",
+            f"{dup['filas_con_gemelo']} filas repetidas en {dup['grupos']} grupos "
+            f"({dup['pct_con_gemelo']}%): revisa si el dataset viene de un join.",
+        )
 
     # --- colinealidad -------------------------------------------------------
     pares = _stats.high_correlation_pairs(df, threshold=corr)
     if not pares.empty:
         detalle = "; ".join(
             f"{a}~{b} (r={r:.2f})"
-            for a, b, r in zip(
-                pares["feature_a"], pares["feature_b"], pares["r"], strict=True
-            )
+            for a, b, r in zip(pares["feature_a"], pares["feature_b"], pares["r"], strict=True)
         )
-        añadir("alta", "colinealidad",
-               sorted(set(pares["feature_a"]) | set(pares["feature_b"])),
-               f"pares casi redundantes: {detalle}. Considera dejar una de cada par.")
+        añadir(
+            "alta",
+            "colinealidad",
+            sorted(set(pares["feature_a"]) | set(pares["feature_b"])),
+            f"pares casi redundantes: {detalle}. Considera dejar una de cada par.",
+        )
 
     # --- nulos --------------------------------------------------------------
     graves = ov.index[ov["pct_missing"] > 50].tolist()
     medios = ov.index[(ov["pct_missing"] > missing_pct) & (ov["pct_missing"] <= 50)].tolist()
     if graves:
         añadir(
-            "alta", "nulos", graves,
+            "alta",
+            "nulos",
+            graves,
             "más de la mitad de los valores ausentes: imputar aquí inventa datos.",
         )
     if medios:
         añadir(
-            "media", "nulos", medios,
+            "media",
+            "nulos",
+            medios,
             f"entre {missing_pct:g}% y 50% de nulos: decide imputación o descarte.",
         )
 
     # --- ceros: importan porque el logaritmo de cero no existe --------------
     muchos_ceros = ov.index[ov["pct_zeros"] > zeros_pct].tolist()
     if muchos_ceros:
-        añadir("media", "ceros", muchos_ceros,
-               f"más de {zeros_pct:g}% de ceros: bloquea transformaciones "
-               "logarítmicas y log-ratio, que no admiten cero.")
+        añadir(
+            "media",
+            "ceros",
+            muchos_ceros,
+            f"más de {zeros_pct:g}% de ceros: bloquea transformaciones "
+            "logarítmicas y log-ratio, que no admiten cero.",
+        )
 
     # --- constantes ---------------------------------------------------------
     constantes = constant_columns(df)
@@ -316,18 +353,25 @@ def alerts(
     forma = _stats.distribution_report(df, skew_threshold=skew)
     sesgadas = forma.index[forma["suggested_scaler"] == "robust"].tolist()
     if sesgadas:
-        añadir("media", "asimetría", sesgadas,
-               "distribuciones sesgadas o con muchos outliers: escalado robusto "
-               "en vez de estándar.")
+        añadir(
+            "media",
+            "asimetría",
+            sesgadas,
+            "distribuciones sesgadas o con muchos outliers: escalado robusto en vez de estándar.",
+        )
 
     # --- cardinalidad -------------------------------------------------------
     card = cardinality(df)
     if not card.empty:
         altas = card.index[card["n_levels"] > max_levels].tolist()
         if altas:
-            añadir("media", "cardinalidad", altas,
-                   f"más de {max_levels} niveles: un one-hot generaría cientos de "
-                   "columnas. Agrupa niveles o úsala solo para perfilar.")
+            añadir(
+                "media",
+                "cardinalidad",
+                altas,
+                f"más de {max_levels} niveles: un one-hot generaría cientos de "
+                "columnas. Agrupa niveles o úsala solo para perfilar.",
+            )
 
     if not hallazgos:
         return pd.DataFrame(columns=["severidad", "chequeo", "columnas", "mensaje"])
