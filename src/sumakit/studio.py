@@ -51,11 +51,33 @@ DEFAULT_PUBLISHABLE_KEY = "sb_publishable_flF_ntpPnjmMP2IvcKj1_A_cy2MwMVI"
 
 MAX_ROWS = 20_000
 
-# La función de Postgres a la que llama el puente. Cambió de nombre con el
-# ADR-0007 de suma-studio y este paquete se quedó apuntando al viejo: durante
-# ese tiempo publicar respondía 404 y nadie se enteró, porque el SDK no tenía
-# CI. La escotilla de compatibilidad de la base cubría las claves del jsonb,
-# no el nombre de la función ni el de sus parámetros.
+# La función de Postgres a la que llama el puente.
+#
+# **Por qué una función y no los endpoints REST de las tablas**, que es lo que
+# alguien va a preguntar al leer esto: porque REST no está disponible. La clave
+# de publicación **no es un JWT** —es un secreto opaco cuyo hash vive en
+# `studio.publish_key`— así que el SDK habla como `anon`, y `anon` no tiene
+# ningún permiso sobre `dataset`, `dataset_row` ni `publish_key`. La RLS decide
+# con `auth.uid()`, que para `anon` es nulo: ninguna política puede expresar
+# «esta clave escribe en este proyecto y en ninguno más». La función sí, porque
+# es `security definer` y hace la búsqueda del hash ella misma.
+#
+# Eso es lo que permite que la clave viva en un Colab compartido. Con REST haría
+# falta una sesión de usuario real, que es justo lo que no se quiere ahí.
+#
+# De regalo, y por eso no se echa de menos: publicar es borrar el conjunto
+# anterior, insertar el nuevo, insertar N filas y tocar `last_used_at`. Por REST
+# son cuatro viajes sin transacción, y re-ejecutar una celda podría dejar un
+# conjunto a medio reemplazar. Acá es una transacción y un viaje.
+#
+# Todo esto se deduce del `ADR-0001` de suma-studio —el permiso se hace cumplir
+# en Postgres— y por eso no tiene ADR propio: es su consecuencia, no una
+# decisión aparte.
+#
+# El nombre cambió con el `ADR-0007` y este paquete se quedó apuntando al viejo:
+# durante ese tiempo publicar respondía 404 y nadie se enteró, porque el SDK no
+# tenía CI. La escotilla de compatibilidad de la base cubría las claves del
+# jsonb, no el nombre de la función ni el de sus parámetros.
 _RPC_PUBLISH = "publish_dataset"
 
 
