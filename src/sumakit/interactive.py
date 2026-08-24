@@ -15,6 +15,8 @@ Los dos beben de la misma paleta de `theme`, así que se ven como un sistema.
 
 from __future__ import annotations
 
+from typing import Any
+
 import altair as alt
 import numpy as np
 import pandas as pd
@@ -173,7 +175,9 @@ def concentration_curve(
 
     apply_theme()
 
-    codificacion = {
+    # Anotado porque el literal mezcla tipos de altair y una lista, y mypy
+    # estrecha el valor a `Collection`, que no tiene `.insert`.
+    codificacion: dict[str, Any] = {
         "x": alt.X("rango:O", title=f"partes acumuladas (de {len(columns)})"),
         "y": alt.Y(
             "acumulado:Q",

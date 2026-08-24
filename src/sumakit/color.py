@@ -1,4 +1,4 @@
-"""Aritmética de color: contraste, separación perceptual y daltonismo.
+"""Aritmética de color: contrast, separación perceptual y daltonismo.
 
 Existe para que el configurador de temas pueda impedir una paleta mala en vez
 de advertirla después. Elegir colores "a ojo" es exactamente donde se cuela un
@@ -12,13 +12,15 @@ from __future__ import annotations
 
 import numpy as np
 
+from ._compat import deprecated_alias
+
 __all__ = [
-    "a_rgb",
-    "luminancia",
-    "contraste",
-    "a_lab",
+    "to_rgb",
+    "luminance",
+    "contrast",
+    "to_lab",
     "delta_e",
-    "simular_cvd",
+    "simulate_cvd",
     "TIPOS_CVD",
 ]
 
@@ -58,7 +60,7 @@ _M_XYZ = np.array(
 _BLANCO_D65 = np.array([0.95047, 1.00000, 1.08883])
 
 
-def a_rgb(hexa: str) -> np.ndarray:
+def to_rgb(hexa: str) -> np.ndarray:
     """'#2a78d6' -> array [0,1] de tres componentes."""
     h = hexa.lstrip("#")
     if len(h) == 3:
@@ -79,24 +81,24 @@ def _gamma(lineal: np.ndarray) -> np.ndarray:
     )
 
 
-def luminancia(color: str) -> float:
+def luminance(color: str) -> float:
     """Luminancia relativa según WCAG."""
-    return float(np.dot(_lineal(a_rgb(color)), [0.2126, 0.7152, 0.0722]))
+    return float(np.dot(_lineal(to_rgb(color)), [0.2126, 0.7152, 0.0722]))
 
 
-def contraste(uno: str, otro: str) -> float:
-    """Razón de contraste WCAG, entre 1 (idénticos) y 21 (blanco sobre negro)."""
-    a, b = sorted((luminancia(uno), luminancia(otro)), reverse=True)
+def contrast(uno: str, otro: str) -> float:
+    """Razón de contrast WCAG, entre 1 (idénticos) y 21 (blanco sobre negro)."""
+    a, b = sorted((luminance(uno), luminance(otro)), reverse=True)
     return (a + 0.05) / (b + 0.05)
 
 
-def a_lab(color: str | np.ndarray) -> np.ndarray:
+def to_lab(color: str | np.ndarray) -> np.ndarray:
     """Convierte a CIE L*a*b*.
 
     Es el espacio donde la distancia euclidiana aproxima la diferencia que
     percibe el ojo, y por eso se usa para medir si dos colores se distinguen.
     """
-    rgb = a_rgb(color) if isinstance(color, str) else np.asarray(color, dtype=float)
+    rgb = to_rgb(color) if isinstance(color, str) else np.asarray(color, dtype=float)
     xyz = _M_XYZ @ _lineal(rgb) / _BLANCO_D65
     f = np.where(xyz > 0.008856, np.cbrt(xyz), 7.787 * xyz + 16 / 116)
     return np.array([116 * f[1] - 16, 500 * (f[0] - f[1]), 200 * (f[1] - f[2])])
@@ -104,11 +106,23 @@ def a_lab(color: str | np.ndarray) -> np.ndarray:
 
 def delta_e(uno, otro) -> float:
     """Diferencia perceptual CIE76. Bajo ~15 dos colores se confunden."""
-    return float(np.linalg.norm(a_lab(uno) - a_lab(otro)))
+    return float(np.linalg.norm(to_lab(uno) - to_lab(otro)))
 
 
-def simular_cvd(color: str, tipo: str) -> np.ndarray:
+def simulate_cvd(color: str, tipo: str) -> np.ndarray:
     """Cómo ve ese color alguien con el tipo de daltonismo indicado."""
     if tipo not in TIPOS_CVD:
         raise ValueError(f"tipo debe ser uno de {sorted(TIPOS_CVD)}; no {tipo!r}")
-    return _gamma(np.clip(TIPOS_CVD[tipo] @ _lineal(a_rgb(color)), 0, 1))
+    return _gamma(np.clip(TIPOS_CVD[tipo] @ _lineal(to_rgb(color)), 0, 1))
+
+
+# ─── Nombres viejos ──────────────────────────────────────────────────────────
+#
+# `sumakit.color` es la referencia contra la que suma-studio valida su puerto en
+# TypeScript, así que sus nombres los lee más de un sitio.
+
+a_rgb = deprecated_alias(to_rgb, "a_rgb", "to_rgb", module="color")
+a_lab = deprecated_alias(to_lab, "a_lab", "to_lab", module="color")
+luminancia = deprecated_alias(luminance, "luminancia", "luminance", module="color")
+contraste = deprecated_alias(contrast, "contraste", "contrast", module="color")
+simular_cvd = deprecated_alias(simulate_cvd, "simular_cvd", "simulate_cvd", module="color")

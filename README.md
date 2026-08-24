@@ -1,7 +1,41 @@
 # sumakit
 
-Utilidades de EDA y analítica reutilizables: tablas de perfilado, diagnóstico
-estadístico y gráficos con un tema consistente y re-skineable.
+[![verificar](https://github.com/fsotosa-ops/sumakit/actions/workflows/verificar.yml/badge.svg)](https://github.com/fsotosa-ops/sumakit/actions/workflows/verificar.yml)
+
+**El SDK de Suma Studio**, con las utilidades de EDA que lo rodean.
+
+## Las capas se instalan por separado
+
+El núcleo es el puente al proyecto y **solo necesita `pandas`**. Sirve igual en
+una celda de Colab, en un script, en un DAG o en un contenedor: no guarda estado
+de módulo ni arrastra librerías de dibujo.
+
+```bash
+pip install sumakit             # solo el SDK
+pip install "sumakit[eda]"      # + perfilado, estadística y gráficos
+pip install "sumakit[all]"      # todo
+```
+
+```python
+from sumakit import studio
+
+client = studio.StudioClient("sk_...")   # la clave que da la app
+client.publish(alerts, "alertas")        # un DataFrame → una tabla del proyecto
+```
+
+`connect()` y `publish()` sueltas guardan un cliente por defecto y existen por
+compatibilidad con los notebooks que ya las usan; **la API es el cliente**.
+
+| Extra | Qué trae | Módulos |
+|---|---|---|
+| — | el SDK | `studio` |
+| `eda` | numpy, matplotlib, seaborn | `profile`, `stats`, `plots`, `exploration`, `nb`, `theme`, `color` |
+| `interactive` | altair | `interactive` |
+| `report` | jinja2, python-pptx, pillow | `deck`, `report` |
+| `ml` | scikit-learn | sugerencias de modelado |
+| `ui` | streamlit | el configurador de tema |
+
+## El EDA
 
 ```python
 from sumakit import nb, profile, stats, plots

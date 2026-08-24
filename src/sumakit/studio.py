@@ -6,8 +6,17 @@ deck y el informe, sin exportar un CSV a mano ni pegar una captura.
 
     from sumakit import studio
 
-    studio.conectar("sk_...")               # la clave que da la app
-    studio.publicar(alertas, "alertas")     # un DataFrame → una tabla del proyecto
+    client = studio.StudioClient("sk_...")   # la clave que da la app
+    client.publish(alerts, "alertas")        # un DataFrame → una tabla del proyecto
+
+**La API es el cliente.** No hay estado de módulo que compartir, así que sirve
+igual en una celda de Colab, en un script, en un DAG o en un contenedor — que es
+donde va a correr si la extracción se hace con dlt.
+
+Las funciones sueltas `connect()` y `publish()` guardan un cliente por defecto y
+existen **por compatibilidad** con los notebooks que ya las usan. No son la forma
+recomendada: un global mutable no tiene sentido donde hay concurrencia o más de
+un proyecto a la vez.
 
 Lo que se publica son **tablas agregadas**, no el dataset crudo: un deck grafica
 entre cinco y treinta puntos, y un informe embebe una tabla que cabe en la
@@ -15,6 +24,10 @@ página. El crudo se queda en el notebook, que es su lugar.
 
 La clave es de escritura y de un solo proyecto. No sirve para leer nada, así
 que puede vivir en un notebook de Colab compartido sin exponer el resto.
+
+Los nombres en español —`conectar`, `publicar`— siguen funcionando con aviso de
+obsolescencia: hay notebooks de Colab usando esta API y romperlos en silencio es
+peor que la inconsistencia.
 """
 
 from __future__ import annotations
@@ -23,186 +36,324 @@ import json
 import os
 import urllib.error
 import urllib.request
+import warnings
 from dataclasses import dataclass
+from typing import Any
 
 import pandas as pd
 
+from ._compat import deprecated_alias
+
 # El proyecto de Sumadots. Se puede apuntar a otro con variables de entorno,
 # que es lo que hace falta para probar sin tocar la base de verdad.
-URL_POR_DEFECTO = "https://alaurkcvrikhiglcehfe.supabase.co"
-CLAVE_PUBLICA_POR_DEFECTO = "sb_publishable_flF_ntpPnjmMP2IvcKj1_A_cy2MwMVI"
+DEFAULT_URL = "https://alaurkcvrikhiglcehfe.supabase.co"
+DEFAULT_PUBLISHABLE_KEY = "sb_publishable_flF_ntpPnjmMP2IvcKj1_A_cy2MwMVI"
 
-MAX_FILAS = 20_000
+MAX_ROWS = 20_000
+
+# La función de Postgres a la que llama el puente. Cambió de nombre con el
+# ADR-0007 de suma-studio y este paquete se quedó apuntando al viejo: durante
+# ese tiempo publicar respondía 404 y nadie se enteró, porque el SDK no tenía
+# CI. La escotilla de compatibilidad de la base cubría las claves del jsonb,
+# no el nombre de la función ni el de sus parámetros.
+_RPC_PUBLISH = "publish_dataset"
 
 
-class ErrorDeStudio(RuntimeError):
+class StudioError(RuntimeError):
     """Algo salió mal hablando con Studio. El mensaje viene del servidor."""
 
 
-@dataclass
-class Conexion:
-    """Dónde publicar y con qué clave.
+@dataclass(frozen=True)
+class PublishResult:
+    """Lo que Studio responde tras aceptar una tabla.
 
-    Se guarda en un global de módulo tras `conectar()` porque el uso natural es
-    un notebook: conectar una vez arriba y publicar varias veces abajo.
+    Va tipado y no como `dict` porque quien lo recibe está en un notebook: un
+    diccionario obliga a imprimirlo para saber qué trae.
     """
 
-    clave: str
-    url: str = URL_POR_DEFECTO
-    clave_publica: str = CLAVE_PUBLICA_POR_DEFECTO
+    dataset_id: str
+    rows: int
+    name: str
+
+    @classmethod
+    def _from_response(cls, payload: dict[str, Any]) -> PublishResult:
+        return cls(
+            dataset_id=str(payload.get("dataset_id", "")),
+            rows=int(payload.get("rows", 0)),
+            name=str(payload.get("name", "")),
+        )
+
+
+def _from_env(new: str, old: str, fallback: str = "") -> str:
+    """Lee una variable de entorno aceptando también su nombre viejo.
+
+    Args:
+        new: El nombre actual, en inglés.
+        old: El nombre en español, que sigue funcionando con aviso.
+        fallback: Qué devolver si no está ninguna de las dos.
+
+    Returns:
+        El valor encontrado, o `fallback`.
+    """
+    if (value := os.environ.get(new)) is not None:
+        return value
+    if new != old and (value := os.environ.get(old)) is not None:
+        warnings.warn(
+            f"{old} se renombró a {new}; el nombre viejo dejará de leerse",
+            DeprecationWarning,
+            stacklevel=3,
+        )
+        return value
+    return fallback
+
+
+class StudioClient:
+    """El cliente del proyecto: dónde publicar y con qué clave.
+
+    Un cliente por proyecto. Se puede tener más de uno a la vez, que es lo que
+    un global de módulo no permite y lo que hace falta para aislar una prueba.
+    """
+
+    def __init__(
+        self,
+        key: str | None = None,
+        *,
+        url: str | None = None,
+        publishable_key: str | None = None,
+    ) -> None:
+        """Arma el cliente, tomando del entorno lo que no se le pase.
+
+        Args:
+            key: La clave de publicación del proyecto. `None` la busca en
+                `SUMA_STUDIO_KEY`.
+            url: La URL del proyecto de Supabase. Solo para apuntar a otra base.
+            publishable_key: La clave pública de la API. Solo para apuntar a otra.
+
+        Raises:
+            StudioError: Si no hay clave ni en el argumento ni en el entorno.
+        """
+        key = key or _from_env("SUMA_STUDIO_KEY", "SUMA_STUDIO_CLAVE")
+        if not key:
+            raise StudioError(
+                "falta la clave de publicación: créala en el proyecto, en Suma Studio, "
+                "y pásala a connect() o déjala en SUMA_STUDIO_KEY"
+            )
+
+        self.key = key
+        self.url = url or _from_env("SUMA_STUDIO_URL", "SUMA_STUDIO_URL", DEFAULT_URL)
+        self.publishable_key = publishable_key or _from_env(
+            "SUMA_STUDIO_PUBLISHABLE_KEY",
+            "SUMA_STUDIO_CLAVE_PUBLICA",
+            DEFAULT_PUBLISHABLE_KEY,
+        )
 
     @property
     def endpoint(self) -> str:
         """La URL de las funciones RPC, que es lo único que este puente llama."""
         return f"{self.url.rstrip('/')}/rest/v1/rpc"
 
+    def __repr__(self) -> str:
+        """Sin la clave dentro: esto se imprime en notebooks que se comparten."""
+        return f"StudioClient(url={self.url!r})"
 
-_conexion: Conexion | None = None
+    def _call(self, function: str, body: dict[str, Any]) -> dict[str, Any]:
+        request = urllib.request.Request(
+            f"{self.endpoint}/{function}",
+            data=json.dumps(body).encode("utf-8"),
+            headers={
+                "Content-Type": "application/json",
+                "apikey": self.publishable_key,
+                "Authorization": f"Bearer {self.publishable_key}",
+                # Las funciones viven en el esquema `studio`, no en `public`.
+                # Sin esta cabecera PostgREST busca en public y responde 404.
+                "Content-Profile": "studio",
+                "Accept-Profile": "studio",
+            },
+            method="POST",
+        )
+
+        try:
+            with urllib.request.urlopen(request, timeout=30) as response:
+                return json.loads(response.read().decode("utf-8"))
+        except urllib.error.HTTPError as error:
+            detail = error.read().decode("utf-8", "replace")
+            try:
+                detail = json.loads(detail).get("message", detail)
+            except json.JSONDecodeError:
+                pass
+            raise StudioError(detail) from error
+        except urllib.error.URLError as error:
+            raise StudioError(f"no se pudo llegar a Studio: {error.reason}") from error
+
+    def publish(self, table: pd.DataFrame, name: str) -> PublishResult:
+        """Publica un DataFrame como una tabla del proyecto.
+
+        Republicar con el mismo nombre **reemplaza** la anterior: re-ejecutar
+        una celda no debe dejar duplicados.
+
+        El índice se conserva solo si tiene nombre; un índice numérico anónimo
+        es ruido en una tabla que se va a graficar.
+
+        Args:
+            table: La tabla agregada que se quiere en el proyecto.
+            name: Cómo se va a llamar en el SQL de Studio.
+
+        Returns:
+            El id del conjunto, cuántas filas entraron y con qué nombre.
+
+        Raises:
+            TypeError: Si `table` no es un DataFrame.
+            ValueError: Si el nombre va vacío, hay columnas repetidas, o son
+                demasiadas filas para lo que un entregable puede mostrar.
+            StudioError: Si Studio rechaza la publicación o no responde.
+        """
+        if not isinstance(table, pd.DataFrame):
+            raise TypeError(f"publish espera un DataFrame, no {type(table).__name__}")
+
+        name = name.strip()
+        if not name:
+            raise ValueError("la tabla necesita un nombre: es cómo la vas a llamar en el SQL")
+
+        if table.index.name:
+            table = table.reset_index()
+
+        if len(table) > MAX_ROWS:
+            raise ValueError(
+                f"son {len(table):,} filas. Publica la tabla agregada, no el dataset crudo: "
+                "un deck grafica entre cinco y treinta puntos"
+            )
+
+        if table.columns.duplicated().any():
+            repeated = table.columns[table.columns.duplicated()].unique().tolist()
+            raise ValueError(f"hay columnas repetidas: {', '.join(repeated)}")
+
+        columns = [
+            {"name": str(column), "kind": _column_kind(table[column])} for column in table.columns
+        ]
+
+        return PublishResult._from_response(
+            self._call(
+                _RPC_PUBLISH,
+                {
+                    "p_key": self.key,
+                    "p_name": name,
+                    "p_columns": columns,
+                    "p_rows": _serialize(table),
+                },
+            )
+        )
+
+    def publish_many(self, tables: dict[str, pd.DataFrame]) -> list[PublishResult]:
+        """Publica varias de una vez. Útil al final de un EDA.
+
+        Args:
+            tables: Nombre en Studio → la tabla que va con él.
+
+        Returns:
+            Una respuesta por tabla, en el orden en que se pasaron.
+        """
+        return [self.publish(table, name) for name, table in tables.items()]
 
 
-def conectar(
-    clave: str | None = None,
+def _column_kind(series: pd.Series) -> str:
+    """El tipo que entiende Studio: solo distingue número de texto."""
+    return "number" if pd.api.types.is_numeric_dtype(series) else "text"
+
+
+def _serialize(table: pd.DataFrame) -> list[dict[str, Any]]:
+    """DataFrame → filas JSON, sin NaN ni tipos que json no sepa escribir."""
+    clean = table.copy()
+
+    for column in clean.columns:
+        if pd.api.types.is_datetime64_any_dtype(clean[column]):
+            clean[column] = clean[column].dt.strftime("%Y-%m-%d")
+        elif not pd.api.types.is_numeric_dtype(clean[column]):
+            clean[column] = clean[column].astype(str)
+
+    # NaN no es JSON válido; va como null, que es lo que significa.
+    return json.loads(clean.to_json(orient="records", date_format="iso"))
+
+
+# ─── Compatibilidad: el cliente por defecto ──────────────────────────────────
+#
+# Un cliente guardado en el módulo. **No es la forma recomendada**, y se
+# conserva porque hay notebooks que ya llaman así. Un global mutable no tiene
+# sentido en un servicio: no hay «sesión», puede haber varios proyectos a la vez
+# y hay concurrencia. Es el mismo camino que recorrió Brevo, que en su v5 quitó
+# el objeto de configuración global y dejó `Brevo(api_key=...)`.
+
+_default_client: StudioClient | None = None
+
+
+def connect(
+    key: str | None = None,
     *,
     url: str | None = None,
-    clave_publica: str | None = None,
-) -> Conexion:
-    """Guarda la clave de publicación para el resto de la sesión.
+    publishable_key: str | None = None,
+) -> StudioClient:
+    """Arma un cliente, lo guarda como el de por defecto y lo devuelve.
 
-    Sin argumento, la busca en `SUMA_STUDIO_CLAVE`. En Colab conviene el
+    Prefiere `StudioClient(...)` directamente: devuelve lo mismo sin dejar
+    estado en el módulo. Esto existe por los notebooks que ya lo usan.
+
+    Sin argumento, la clave sale de `SUMA_STUDIO_KEY`. En Colab conviene el
     gestor de secretos en vez de escribirla en una celda:
 
         from google.colab import userdata
-        studio.conectar(userdata.get("SUMA_STUDIO_CLAVE"))
+        studio.connect(userdata.get("SUMA_STUDIO_KEY"))
+
+    Args:
+        key: La clave de publicación del proyecto.
+        url: La URL del proyecto de Supabase.
+        publishable_key: La clave pública de la API.
+
+    Returns:
+        El cliente, que además queda como el de por defecto.
     """
-    global _conexion
-
-    clave = clave or os.environ.get("SUMA_STUDIO_CLAVE", "")
-    if not clave:
-        raise ErrorDeStudio(
-            "falta la clave de publicación: créala en el proyecto, en Suma Studio, "
-            "y pásala a conectar() o déjala en SUMA_STUDIO_CLAVE"
-        )
-
-    _conexion = Conexion(
-        clave=clave,
-        url=url or os.environ.get("SUMA_STUDIO_URL", URL_POR_DEFECTO),
-        clave_publica=clave_publica
-        or os.environ.get("SUMA_STUDIO_CLAVE_PUBLICA", CLAVE_PUBLICA_POR_DEFECTO),
-    )
-    return _conexion
+    global _default_client
+    _default_client = StudioClient(key, url=url, publishable_key=publishable_key)
+    return _default_client
 
 
-def _conexion_activa() -> Conexion:
-    if _conexion is None:
-        raise ErrorDeStudio("primero llama a studio.conectar(...) con tu clave")
-    return _conexion
+def _active_client() -> StudioClient:
+    if _default_client is None:
+        raise StudioError("primero llama a studio.connect(...) con tu clave")
+    return _default_client
 
 
-def _llamar(funcion: str, cuerpo: dict) -> dict:
-    conexion = _conexion_activa()
-    peticion = urllib.request.Request(
-        f"{conexion.endpoint}/{funcion}",
-        data=json.dumps(cuerpo).encode("utf-8"),
-        headers={
-            "Content-Type": "application/json",
-            "apikey": conexion.clave_publica,
-            "Authorization": f"Bearer {conexion.clave_publica}",
-            # Las funciones viven en el esquema `studio`, no en `public`.
-            # Sin esta cabecera PostgREST busca en public y responde 404.
-            "Content-Profile": "studio",
-            "Accept-Profile": "studio",
-        },
-        method="POST",
-    )
-
-    try:
-        with urllib.request.urlopen(peticion, timeout=30) as respuesta:
-            return json.loads(respuesta.read().decode("utf-8"))
-    except urllib.error.HTTPError as error:
-        detalle = error.read().decode("utf-8", "replace")
-        try:
-            detalle = json.loads(detalle).get("message", detalle)
-        except json.JSONDecodeError:
-            pass
-        raise ErrorDeStudio(detalle) from error
-    except urllib.error.URLError as error:
-        raise ErrorDeStudio(f"no se pudo llegar a Studio: {error.reason}") from error
+def publish(table: pd.DataFrame, name: str) -> PublishResult:
+    """Publica con el cliente por defecto. Prefiere `StudioClient.publish`."""
+    return _active_client().publish(table, name)
 
 
-def _tipo_de_columna(serie: pd.Series) -> str:
-    return "numero" if pd.api.types.is_numeric_dtype(serie) else "texto"
+def publish_many(tables: dict[str, pd.DataFrame]) -> list[PublishResult]:
+    """Publica varias con el cliente por defecto. Prefiere `StudioClient.publish_many`."""
+    return _active_client().publish_many(tables)
 
 
-def _serializar(tabla: pd.DataFrame) -> list[dict]:
-    """DataFrame → filas JSON, sin NaN ni tipos que json no sepa escribir."""
-    limpio = tabla.copy()
-
-    for columna in limpio.columns:
-        if pd.api.types.is_datetime64_any_dtype(limpio[columna]):
-            limpio[columna] = limpio[columna].dt.strftime("%Y-%m-%d")
-        elif not pd.api.types.is_numeric_dtype(limpio[columna]):
-            limpio[columna] = limpio[columna].astype(str)
-
-    # NaN no es JSON válido; va como null, que es lo que significa.
-    return json.loads(limpio.to_json(orient="records", date_format="iso"))
+# ─── Nombres viejos ──────────────────────────────────────────────────────────
+#
+# La API pública de un SDK es un contrato con gente a la que no puedes llamar.
+# Hay notebooks de Colab con `studio.conectar(...)` escrito dentro, y romperlos
+# en silencio es peor que la inconsistencia que esto vino a arreglar.
 
 
-def publicar(tabla: pd.DataFrame, nombre: str) -> dict:
-    """Publica un DataFrame como una tabla del proyecto.
+conectar = deprecated_alias(connect, "conectar", "connect", module="studio")
+publicar = deprecated_alias(publish, "publicar", "publish", module="studio")
+publicar_varias = deprecated_alias(publish_many, "publicar_varias", "publish_many", module="studio")
 
-    Republicar con el mismo nombre **reemplaza** la anterior: re-ejecutar una
-    celda no debe dejar duplicados.
+#: Obsoleto: usa `StudioError`. Es la misma clase y no una subclase, para que un
+#: `except ErrorDeStudio` viejo siga atrapando lo que lanza el código nuevo.
+ErrorDeStudio = StudioError
+#: Obsoleto: usa `StudioClient`.
+Conexion = StudioClient
 
-        studio.publicar(profile.alerts(df), "alertas")
-        studio.publicar(gasto_por_ocasion, "gasto por ocasión")
-
-    El índice se conserva solo si tiene nombre; un índice numérico anónimo es
-    ruido en una tabla que se va a graficar.
-    """
-    if not isinstance(tabla, pd.DataFrame):
-        raise TypeError(f"publicar espera un DataFrame, no {type(tabla).__name__}")
-
-    nombre = nombre.strip()
-    if not nombre:
-        raise ValueError("la tabla necesita un nombre: es cómo la vas a llamar en el SQL")
-
-    if tabla.index.name:
-        tabla = tabla.reset_index()
-
-    if len(tabla) > MAX_FILAS:
-        raise ValueError(
-            f"son {len(tabla):,} filas. Publica la tabla agregada, no el dataset crudo: "
-            "un deck grafica entre cinco y treinta puntos"
-        )
-
-    if tabla.columns.duplicated().any():
-        repetidas = tabla.columns[tabla.columns.duplicated()].unique().tolist()
-        raise ValueError(f"hay columnas repetidas: {', '.join(repetidas)}")
-
-    columnas = [
-        {"nombre": str(columna), "tipo": _tipo_de_columna(tabla[columna])}
-        for columna in tabla.columns
-    ]
-
-    respuesta = _llamar(
-        "publicar_conjunto",
-        {
-            "p_clave": _conexion_activa().clave,
-            "p_nombre": nombre,
-            "p_columnas": columnas,
-            "p_filas": _serializar(tabla),
-        },
-    )
-
-    return respuesta
-
-
-def publicar_varias(tablas: dict[str, pd.DataFrame]) -> list[dict]:
-    """Publica varias de una vez. Útil al final de un EDA.
-
-    studio.publicar_varias({
-        "alertas": profile.alerts(df),
-        "distribuciones": stats.distribution_report(df),
-    })
-    """
-    return [publicar(tabla, nombre) for nombre, tabla in tablas.items()]
+__all__ = [
+    "MAX_ROWS",
+    "PublishResult",
+    "StudioClient",
+    "StudioError",
+    "connect",
+    "publish",
+    "publish_many",
+]

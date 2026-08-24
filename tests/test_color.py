@@ -8,29 +8,29 @@ from sumakit import color, theme
 
 def test_contraste_maximo_es_21():
     """Blanco sobre negro es el máximo teórico de WCAG."""
-    assert color.contraste("#000000", "#ffffff") == pytest.approx(21.0, abs=0.05)
+    assert color.contrast("#000000", "#ffffff") == pytest.approx(21.0, abs=0.05)
 
 
 def test_contraste_de_un_color_consigo_mismo_es_1():
-    assert color.contraste("#2a78d6", "#2a78d6") == pytest.approx(1.0)
+    assert color.contrast("#2a78d6", "#2a78d6") == pytest.approx(1.0)
 
 
 def test_contraste_es_simetrico():
-    assert color.contraste("#000", "#fff") == pytest.approx(color.contraste("#fff", "#000"))
+    assert color.contrast("#000", "#fff") == pytest.approx(color.contrast("#fff", "#000"))
 
 
 def test_acepta_hex_de_tres_digitos():
-    assert np.allclose(color.a_rgb("#fff"), color.a_rgb("#ffffff"))
+    assert np.allclose(color.to_rgb("#fff"), color.to_rgb("#ffffff"))
 
 
 def test_hex_invalido_falla():
     with pytest.raises(ValueError, match="hexadecimal"):
-        color.a_rgb("no-es-un-color")
+        color.to_rgb("no-es-un-color")
 
 
 def test_lab_del_blanco():
     """El blanco de referencia tiene L*=100 y cromaticidad nula."""
-    lab = color.a_lab("#ffffff")
+    lab = color.to_lab("#ffffff")
     assert lab[0] == pytest.approx(100, abs=0.5)
     assert abs(lab[1]) < 1 and abs(lab[2]) < 1
 
@@ -39,7 +39,7 @@ def test_el_rojo_y_el_verde_colapsan_con_deuteranopia():
     """El caso de manual: son el par que más se confunde."""
     normal = color.delta_e("#e34948", "#008300")
     simulado = color.delta_e(
-        color.simular_cvd("#e34948", "deuteranopía"), color.simular_cvd("#008300", "deuteranopía")
+        color.simulate_cvd("#e34948", "deuteranopía"), color.simulate_cvd("#008300", "deuteranopía")
     )
     assert normal > 100
     assert simulado < 20, "debería colapsar y no lo hace"
@@ -48,14 +48,14 @@ def test_el_rojo_y_el_verde_colapsan_con_deuteranopia():
 def test_el_azul_y_el_naranja_sobreviven():
     """Es el par seguro por excelencia, y por eso son los dos primeros slots."""
     simulado = color.delta_e(
-        color.simular_cvd("#2a78d6", "deuteranopía"), color.simular_cvd("#eb6834", "deuteranopía")
+        color.simulate_cvd("#2a78d6", "deuteranopía"), color.simulate_cvd("#eb6834", "deuteranopía")
     )
     assert simulado > 50
 
 
 def test_tipo_de_daltonismo_invalido():
     with pytest.raises(ValueError, match="tipo debe ser"):
-        color.simular_cvd("#000000", "inventado")
+        color.simulate_cvd("#000000", "inventado")
 
 
 # --- validación de paletas --------------------------------------------------
@@ -122,3 +122,12 @@ def test_el_detalle_explica_el_contraste_bajo():
     fila = theme.validate(theme.LIGHT).iloc[0]
     if not fila["pasa"]:
         assert "etiquetas directas" in fila["detalle"]
+
+
+def test_los_nombres_viejos_siguen_funcionando():
+    """El puerto en TypeScript de suma-studio se valida contra este módulo."""
+    with pytest.warns(DeprecationWarning, match="contrast"):
+        assert color.contraste("#000000", "#ffffff") == pytest.approx(21.0, abs=0.05)
+
+    with pytest.warns(DeprecationWarning, match="luminance"):
+        assert color.luminancia("#ffffff") == pytest.approx(1.0, abs=0.01)

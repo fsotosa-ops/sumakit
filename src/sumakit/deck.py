@@ -28,6 +28,7 @@ conclusión. Es la regla de la Pirámide de Minto, y aquí es un `ValueError`.
 
 from __future__ import annotations
 
+import warnings
 from pathlib import Path
 
 import pandas as pd
@@ -43,7 +44,7 @@ def pd_api_numerica(serie) -> bool:
     return pd.api.types.is_numeric_dtype(serie)
 
 
-__all__ = ["Deck", "TituloNoAccionable"]
+__all__ = ["Deck", "NonActionableTitleError"]
 
 # Geometría en pulgadas, 16:9. Sale del mockup validado a 96 px/pulgada.
 _ANCHO, _ALTO = 13.333, 7.5
@@ -64,7 +65,7 @@ _FRACCION_FIGURA = 0.66
 _FUENTE = "Helvetica Neue"
 
 
-class TituloNoAccionable(ValueError):
+class NonActionableTitleError(ValueError):
     """El título describe una categoría en vez de afirmar un hallazgo."""
 
 
@@ -201,7 +202,7 @@ class Deck:
         if not self.strict:
             return
         if len(titulo.replace("**", " ").split()) < _MIN_PALABRAS_TITULO:
-            raise TituloNoAccionable(
+            raise NonActionableTitleError(
                 f"«{titulo}» parece una etiqueta, no un hallazgo. Un título de "
                 "acción afirma la conclusión en una frase completa: no "
                 "«Resultados» sino «Dos tercios de la cartera realizó tres "
@@ -491,10 +492,26 @@ class Deck:
         return len(self.prs.slides)
 
     @property
-    def es_oscuro(self) -> bool:
+    def is_dark(self) -> bool:
         """El tema oscuro cambia qué color contrasta dentro de las bandas."""
         return self.palette.name.endswith("dark")
+
+    @property
+    def es_oscuro(self) -> bool:
+        """Obsoleto: usa `is_dark`."""
+        warnings.warn(
+            "Deck.es_oscuro se renombró a Deck.is_dark",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.is_dark
 
     def __repr__(self) -> str:
         """Título y número de láminas: lo que se quiere ver en un notebook."""
         return f"Deck({self.title!r}, {len(self)} láminas)"
+
+
+#: Obsoleto: usa `NonActionableTitleError`. Misma clase y no subclase, para que
+#: un `except TituloNoAccionable` viejo siga atrapando lo que lanza el código
+#: nuevo. El sufijo `Error` es la convención de Python para excepciones.
+TituloNoAccionable = NonActionableTitleError

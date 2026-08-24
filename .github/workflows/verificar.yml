@@ -1,0 +1,50 @@
+name: verificar
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  verificar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Instalar
+        run: uv sync --all-extras
+
+      # El SDK antes que nada: si `import sumakit.studio` arrastra matplotlib,
+      # las capas son una declaración en el pyproject y no un hecho. Se prueba
+      # en un entorno donde SOLO está el núcleo instalado.
+      - name: El núcleo se instala y se usa solo
+        run: |
+          uv venv /tmp/solo-sdk
+          VIRTUAL_ENV=/tmp/solo-sdk uv pip install .
+          /tmp/solo-sdk/bin/python -c "
+          import sys
+          from sumakit import studio
+          pesadas = [m for m in ('matplotlib','seaborn','altair','pptx') if m in sys.modules]
+          assert not pesadas, f'el SDK arrastró {pesadas}'
+          studio.StudioClient('sk_x')
+          print('el núcleo corre sin los extras')
+          "
+
+      - name: Lint
+        run: uv run ruff check .
+
+      - name: Formato
+        run: uv run ruff format --check .
+
+      - name: Tipos
+        run: uv run mypy
+
+      # `-m "not lento"` excluye las cuatro que renderizan con Quarto de verdad:
+      # necesitan Quarto instalado Y el paquete visible desde el kernel que
+      # Quarto levanta, que no es el del entorno virtual. Fallan por ambiente.
+      - name: Pruebas
+        run: uv run pytest -q -m "not lento"
