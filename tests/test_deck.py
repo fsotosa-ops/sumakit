@@ -247,4 +247,4 @@ def test_el_tema_oscuro_cambia_el_fondo():
 
     claro, oscuro = Deck("d", palette=theme.LIGHT), Deck("d", palette=theme.DARK)
     assert claro._fondo != oscuro._fondo
-    assert oscuro.es_oscuro and not claro.es_oscuro
+    assert oscuro.is_dark and not claro.is_dark

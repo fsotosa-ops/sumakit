@@ -1,0 +1,28 @@
+# Lo que se atrapa en el commit no llega al CI.
+#
+#     uv run pre-commit install
+#
+# Corre solo sobre lo que cambia, así que es rápido. `mypy` y `pytest` no están
+# aquí a propósito: tardan lo suficiente como para que la gente empiece a usar
+# `--no-verify`, y entonces no protegen de nada. Esos los corre el CI.
+
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.16.4
+    hooks:
+      - id: ruff-check
+        args: [--fix]
+      - id: ruff-format
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-toml
+      - id: check-yaml
+      - id: check-merge-conflict
+      # Un notebook con salidas dentro ensucia el diff y puede llevar datos de
+      # un cliente. Este paquete vive cerca de notebooks: el riesgo es real.
+      - id: check-added-large-files
+        args: [--maxkb=500]

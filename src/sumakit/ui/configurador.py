@@ -71,7 +71,7 @@ def _lamina_ejemplo(pal: theme.Palette):
     """Boceto de una lámina con la misma geometría que usa `sumakit.deck`."""
     fig = plt.figure(figsize=(9, 5.06))
     fig.patch.set_facecolor(pal.surface)
-    ax = fig.add_axes([0, 0, 1, 1])
+    ax = fig.add_axes((0, 0, 1, 1))
     ax.set_axis_off()
     ax.set_xlim(0, 13.333)
     ax.set_ylim(0, 7.5)

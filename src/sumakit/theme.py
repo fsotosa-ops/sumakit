@@ -15,11 +15,13 @@ los pisos de separación: hay que agrupar en "Otros" o facetar.
 from __future__ import annotations
 
 import contextlib
+from collections.abc import Iterator
 from dataclasses import dataclass, field, fields, replace
 from pathlib import Path
 
 import matplotlib as mpl
 import pandas as pd
+from cycler import cycler
 from matplotlib.colors import LinearSegmentedColormap
 
 from . import color as _color
@@ -89,7 +91,9 @@ class Palette:
             "axes.grid.axis": "y",
             # La grilla es referencia, no dato: siempre detrás de las marcas.
             "axes.axisbelow": True,
-            "axes.prop_cycle": mpl.cycler(color=list(self.categorical)),
+            # `cycler` se importa de su paquete y no vía `mpl.cycler`: es el
+            # mismo objeto, pero el reexport no está en los stubs.
+            "axes.prop_cycle": cycler(color=list(self.categorical)),
             "grid.color": self.grid,
             "grid.linewidth": 0.6,
             "grid.alpha": 0.5,
@@ -179,7 +183,7 @@ def use(palette: Palette = LIGHT) -> Palette:
 
 
 @contextlib.contextmanager
-def using(palette: Palette):
+def using(palette: Palette) -> Iterator[Palette]:
     """Aplica la paleta solo dentro del bloque, sin dejar estado global sucio."""
     previous_rc = mpl.rcParams.copy()
     previous = use(palette)
@@ -212,7 +216,9 @@ def categorical(n: int, *, all_pairs: bool = False, palette: Palette | None = No
     return list(pal.categorical[:n])
 
 
-def sequential_cmap(palette: Palette | None = None, *, reverse: bool = False):
+def sequential_cmap(
+    palette: Palette | None = None, *, reverse: bool = False
+) -> LinearSegmentedColormap:
     """Rampa de un solo tono para magnitud continua (heatmaps)."""
     pal = palette or _active
     steps = list(pal.sequential)
@@ -221,7 +227,7 @@ def sequential_cmap(palette: Palette | None = None, *, reverse: bool = False):
     return LinearSegmentedColormap.from_list(f"{pal.name}-seq", steps)
 
 
-def diverging_cmap(palette: Palette | None = None):
+def diverging_cmap(palette: Palette | None = None) -> LinearSegmentedColormap:
     """Dos tonos con gris neutro al medio, para polaridad (correlaciones).
 
     El punto medio es gris a propósito: un tono al centro haría leer "cero"
@@ -274,8 +280,8 @@ def validate(
 
     filas = []
 
-    peor = min(colores, key=lambda c: _color.contraste(c, pal.surface))
-    ratio = _color.contraste(peor, pal.surface)
+    peor = min(colores, key=lambda c: _color.contrast(c, pal.surface))
+    ratio = _color.contrast(peor, pal.surface)
     filas.append(
         {
             "chequeo": "contraste con el fondo",
@@ -304,7 +310,7 @@ def validate(
     )
 
     for tipo in _color.TIPOS_CVD:
-        simulados = [_color.simular_cvd(c, tipo) for c in colores]
+        simulados = [_color.simulate_cvd(c, tipo) for c in colores]
         i, j = min(pares, key=lambda p: _color.delta_e(simulados[p[0]], simulados[p[1]]))
         de = _color.delta_e(simulados[i], simulados[j])
         filas.append(

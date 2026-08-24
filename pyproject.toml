@@ -5,21 +5,39 @@ description = "Utilidades de EDA y analítica reutilizables: tablas de perfilado
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
+# El núcleo es el SDK, y el SDK solo necesita DataFrames y la biblioteca
+# estándar. Todo lo demás va en extras: un contenedor que solo publica tablas no
+# tiene por qué cargar matplotlib, y un notebook de EDA no necesita python-pptx.
 dependencies = [
     "pandas>=2.0",
+]
+
+[project.optional-dependencies]
+# Perfilado, estadística y gráficos: `profile`, `stats`, `plots`, `exploration`.
+eda = [
     "numpy>=1.24",
     "matplotlib>=3.7",
     "seaborn>=0.13",
+]
+# Gráficos interactivos: `interactive`.
+interactive = ["altair>=6.2.2"]
+# El entregable. **Es el que el ADR-0009 de suma-studio manda retirar**: el
+# render es de Studio. Vive detrás de un extra mientras se retira.
+report = [
     "jinja2>=3.1.6",
-    "altair>=6.2.2",
     "python-pptx>=1.0.2",
     "pillow>=12.3.0",
     "tabulate>=0.10.0",
 ]
-
-[project.optional-dependencies]
 ml = ["scikit-learn>=1.3"]
 ui = ["streamlit>=1.36"]
+all = [
+    "sumakit[eda]",
+    "sumakit[interactive]",
+    "sumakit[report]",
+    "sumakit[ml]",
+    "sumakit[ui]",
+]
 
 [dependency-groups]
 dev = [
@@ -98,7 +116,10 @@ convention = "google"
 # línea, que es peor que no tener tipos.
 
 [tool.mypy]
-python_version = "3.10"
+# Sin fijar `python_version`: se usa el del intérprete. Fijarlo en 3.10 hace que
+# mypy no pueda leer los stubs de numpy, que usan `type` de 3.12 — y el error
+# sale dentro de numpy, no del código de aquí. El paquete sigue soportando 3.10
+# en ejecución; lo que se comprueba es la versión con la que corre el CI.
 files = ["src/sumakit"]
 ignore_missing_imports = true
 warn_unused_ignores = true
