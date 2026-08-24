@@ -19,7 +19,15 @@ from .exploration import Exploration, explore
 
 __version__ = "0.1.0"
 __all__ = [
-    "explore", "Exploration",
-    "deck", "interactive", "nb", "plots", "profile", "stats", "studio", "theme",
+    "explore",
+    "Exploration",
+    "deck",
+    "interactive",
+    "nb",
+    "plots",
+    "profile",
+    "stats",
+    "studio",
+    "theme",
     "__version__",
 ]

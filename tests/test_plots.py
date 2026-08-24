@@ -9,6 +9,7 @@ from sumakit import plots, theme
 
 # --- regresiones de los bugs encontrados en eda_utils.py --------------------
 
+
 def test_distributions_con_una_sola_columna(df_una_columna):
     """Antes: AttributeError 'Axes' object has no attribute 'flatten'."""
     fig = plots.distributions(df_una_columna)
@@ -31,6 +32,7 @@ def test_boxes_sin_columnas_numericas(df_sin_numericas):
 
 
 # --- la regla de diseño: devolver, no mostrar -------------------------------
+
 
 @pytest.mark.parametrize("fn", ["distributions", "boxes", "correlation_heatmap", "missing_matrix"])
 def test_devuelven_figure(df, fn):
@@ -60,6 +62,7 @@ def test_no_muta_estado_global_de_seaborn(df):
 
 # --- comportamiento ---------------------------------------------------------
 
+
 def test_grilla_contiene_todos_los_paneles(df):
     n_num = df.select_dtypes("number").shape[1]
     fig = plots.distributions(df)
@@ -78,6 +81,7 @@ def test_columna_inexistente_falla(df):
 
 def test_heatmap_apaga_anotaciones_con_muchas_variables():
     import numpy as np
+
     ancho = pd.DataFrame(np.random.rand(30, 20), columns=[f"v{i}" for i in range(20)])
     fig = plots.correlation_heatmap(ancho)
     textos = [t for t in fig.axes[0].texts]
@@ -94,6 +98,7 @@ def test_missing_matrix_sin_nulos(df_una_columna):
 
 def test_pairs_rechaza_demasiadas_variables():
     import numpy as np
+
     ancho = pd.DataFrame(np.random.rand(20, 12), columns=[f"v{i}" for i in range(12)])
     with pytest.raises(ValueError, match="ilegibles"):
         plots.pairs(ancho)
@@ -110,6 +115,7 @@ def test_pairs_respeta_el_limite_de_tres_series(df):
 def test_scaling_comparison_acepta_ndarray(df):
     pytest.importorskip("sklearn")
     from sklearn.preprocessing import StandardScaler
+
     feats = ["normal", "sesgada"]
     escalado = StandardScaler().fit_transform(df[feats])
     fig = plots.scaling_comparison(df, escalado, feats)

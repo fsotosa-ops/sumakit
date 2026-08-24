@@ -101,13 +101,15 @@ def explore(
     resumen = profile.overview(df)
     forma = stats.distribution_report(df)
     grupos = (
-        stats.sum_constant_groups(df) if compositional
+        stats.sum_constant_groups(df)
+        if compositional
         else pd.DataFrame(columns=["constant", "n_columns", "columns"])
     )
 
     muestra = (
         df.sample(sample, random_state=random_state)
-        if sample is not None and len(df) > sample else df
+        if sample is not None and len(df) > sample
+        else df
     )
 
     def señaladas(chequeo: str) -> list[str]:
@@ -123,7 +125,8 @@ def explore(
     sesgadas = señaladas("asimetría")[:_MAX_PANELES]
     if sesgadas:
         figuras["distribuciones señaladas"] = plots.distributions(
-            muestra, columns=sesgadas,
+            muestra,
+            columns=sesgadas,
             title="Variables con asimetría o exceso de outliers",
         )
 
@@ -150,6 +153,9 @@ def explore(
         plt.close(fig)
 
     return Exploration(
-        alerts=alertas, overview=resumen, distributions=forma,
-        compositional=grupos, figures=figuras,
+        alerts=alertas,
+        overview=resumen,
+        distributions=forma,
+        compositional=grupos,
+        figures=figuras,
     )

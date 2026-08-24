@@ -11,13 +11,15 @@ from sumakit import interactive
 @pytest.fixture
 def comp():
     """Tres composiciones: una concentrada, una repartida, una intermedia."""
-    return pd.DataFrame({
-        "a": [1.0, 0.34, 0.5],
-        "b": [0.0, 0.33, 0.3],
-        "c": [0.0, 0.33, 0.2],
-        "grupo": ["x", "y", "x"],
-        "sitio": ["s1", "s2", "s1"],
-    })
+    return pd.DataFrame(
+        {
+            "a": [1.0, 0.34, 0.5],
+            "b": [0.0, 0.33, 0.3],
+            "c": [0.0, 0.33, 0.2],
+            "grupo": ["x", "y", "x"],
+            "sitio": ["s1", "s2", "s1"],
+        }
+    )
 
 
 def test_la_curva_siempre_cierra_en_uno(comp):
@@ -69,10 +71,13 @@ def test_ignora_filas_que_suman_cero():
 def test_agrupa_los_niveles_raros_en_otros():
     """Un desplegable de cincuenta opciones no es interactividad."""
     n = 60
-    d = pd.DataFrame({
-        "a": np.linspace(0.1, 0.9, n), "b": 1 - np.linspace(0.1, 0.9, n),
-        "sitio": [f"s{i}" for i in range(n)],
-    })
+    d = pd.DataFrame(
+        {
+            "a": np.linspace(0.1, 0.9, n),
+            "b": 1 - np.linspace(0.1, 0.9, n),
+            "sitio": [f"s{i}" for i in range(n)],
+        }
+    )
     t = interactive.concentration_table(d, ["a", "b"], by="sitio", max_levels=5)
     assert t["sitio"].nunique() == 6, "cinco niveles más 'Otros'"
     assert "Otros" in set(t["sitio"])
@@ -89,6 +94,7 @@ def test_columna_inexistente(comp):
 
 
 # --- el gráfico -------------------------------------------------------------
+
 
 def test_devuelve_un_chart_de_altair(comp):
     ch = interactive.concentration_curve(comp, ["a", "b", "c"], by="grupo")
@@ -122,6 +128,7 @@ def test_el_filtro_agrega_un_desplegable(comp):
 
 def test_usa_la_paleta_de_la_libreria(comp):
     from sumakit import theme
+
     interactive.apply_theme(theme.LIGHT)
     cfg = alt.theme.active
     assert cfg == "sumakit"

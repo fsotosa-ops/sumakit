@@ -8,12 +8,12 @@ from sumakit import nb, profile, stats, plots
 
 nb.setup(seed=42)
 
-profile.overview(df)                  # tipos, nulos, únicos, ceros, constantes
-stats.distribution_report(df)         # asimetría, outliers y escalador sugerido
-stats.high_correlation_pairs(df)      # colinealidad, sin entrecerrar los ojos
+profile.overview(df)  # tipos, nulos, únicos, ceros, constantes
+stats.distribution_report(df)  # asimetría, outliers y escalador sugerido
+stats.high_correlation_pairs(df)  # colinealidad, sin entrecerrar los ojos
 
-fig = plots.correlation_heatmap(df)   # devuelve Figure
-fig.savefig("correlaciones.svg")      # sirve en notebook, informe y lámina
+fig = plots.correlation_heatmap(df)  # devuelve Figure
+fig.savefig("correlaciones.svg")  # sirve en notebook, informe y lámina
 ```
 
 ## Tres reglas

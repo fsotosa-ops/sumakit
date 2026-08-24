@@ -123,8 +123,14 @@ LIGHT = Palette(
         "#e34948",  # rojo
     ),
     sequential=(
-        "#cde2fb", "#9ec5f4", "#6da7ec", "#3987e5",
-        "#2a78d6", "#256abf", "#1c5cab", "#104281",
+        "#cde2fb",
+        "#9ec5f4",
+        "#6da7ec",
+        "#3987e5",
+        "#2a78d6",
+        "#256abf",
+        "#1c5cab",
+        "#104281",
     ),
     diverging_low="#2a78d6",
     diverging_high="#e34948",
@@ -139,8 +145,14 @@ DARK = replace(
     LIGHT,
     name="sumakit-dark",
     categorical=(
-        "#3987e5", "#d95926", "#199e70", "#c98500",
-        "#d55181", "#008300", "#9085e9", "#e66767",
+        "#3987e5",
+        "#d95926",
+        "#199e70",
+        "#c98500",
+        "#d55181",
+        "#008300",
+        "#9085e9",
+        "#e66767",
     ),
     neutral="#383835",
     surface="#1a1a19",
@@ -230,8 +242,9 @@ DELTA_E_MINIMO = 15.0
 DELTA_E_CVD_MINIMO = 8.0
 
 
-def validate(palette: Palette | None = None, *, n: int | None = None,
-             all_pairs: bool = False) -> pd.DataFrame:
+def validate(
+    palette: Palette | None = None, *, n: int | None = None, all_pairs: bool = False
+) -> pd.DataFrame:
     """Revisa si una paleta es usable, en vez de confiar en el ojo.
 
     Tres chequeos, uno por fila del resultado:
@@ -253,47 +266,57 @@ def validate(palette: Palette | None = None, *, n: int | None = None,
     if len(colores) < 2:
         raise ValueError("se necesitan al menos 2 colores para validar una paleta")
 
-    pares = ([(i, j) for i in range(len(colores)) for j in range(i + 1, len(colores))]
-             if all_pairs else [(i, i + 1) for i in range(len(colores) - 1)])
+    pares = (
+        [(i, j) for i in range(len(colores)) for j in range(i + 1, len(colores))]
+        if all_pairs
+        else [(i, i + 1) for i in range(len(colores) - 1)]
+    )
 
     filas = []
 
     peor = min(colores, key=lambda c: _color.contraste(c, pal.surface))
     ratio = _color.contraste(peor, pal.surface)
-    filas.append({
-        "chequeo": "contraste con el fondo",
-        "peor_caso": peor,
-        "valor": round(ratio, 2),
-        "umbral": CONTRASTE_MINIMO,
-        "pasa": ratio >= CONTRASTE_MINIMO,
-        "detalle": f"{peor} sobre {pal.surface}"
-                   + ("" if ratio >= CONTRASTE_MINIMO
-                      else " — usable solo con etiquetas directas o tabla"),
-    })
+    filas.append(
+        {
+            "chequeo": "contraste con el fondo",
+            "peor_caso": peor,
+            "valor": round(ratio, 2),
+            "umbral": CONTRASTE_MINIMO,
+            "pasa": ratio >= CONTRASTE_MINIMO,
+            "detalle": f"{peor} sobre {pal.surface}"
+            + (
+                "" if ratio >= CONTRASTE_MINIMO else " — usable solo con etiquetas directas o tabla"
+            ),
+        }
+    )
 
     i, j = min(pares, key=lambda p: _color.delta_e(colores[p[0]], colores[p[1]]))
     de = _color.delta_e(colores[i], colores[j])
-    filas.append({
-        "chequeo": "separación (visión normal)",
-        "peor_caso": f"{colores[i]} ↔ {colores[j]}",
-        "valor": round(de, 1),
-        "umbral": DELTA_E_MINIMO,
-        "pasa": de >= DELTA_E_MINIMO,
-        "detalle": f"slots {i + 1} y {j + 1}",
-    })
+    filas.append(
+        {
+            "chequeo": "separación (visión normal)",
+            "peor_caso": f"{colores[i]} ↔ {colores[j]}",
+            "valor": round(de, 1),
+            "umbral": DELTA_E_MINIMO,
+            "pasa": de >= DELTA_E_MINIMO,
+            "detalle": f"slots {i + 1} y {j + 1}",
+        }
+    )
 
     for tipo in _color.TIPOS_CVD:
         simulados = [_color.simular_cvd(c, tipo) for c in colores]
         i, j = min(pares, key=lambda p: _color.delta_e(simulados[p[0]], simulados[p[1]]))
         de = _color.delta_e(simulados[i], simulados[j])
-        filas.append({
-            "chequeo": f"separación ({tipo})",
-            "peor_caso": f"{colores[i]} ↔ {colores[j]}",
-            "valor": round(de, 1),
-            "umbral": DELTA_E_CVD_MINIMO,
-            "pasa": de >= DELTA_E_CVD_MINIMO,
-            "detalle": f"slots {i + 1} y {j + 1}",
-        })
+        filas.append(
+            {
+                "chequeo": f"separación ({tipo})",
+                "peor_caso": f"{colores[i]} ↔ {colores[j]}",
+                "valor": round(de, 1),
+                "umbral": DELTA_E_CVD_MINIMO,
+                "pasa": de >= DELTA_E_CVD_MINIMO,
+                "detalle": f"slots {i + 1} y {j + 1}",
+            }
+        )
 
     return pd.DataFrame(filas)
 
@@ -305,8 +328,10 @@ def save(palette: Palette, ruta: str | Path) -> Path:
 
     destino = _Path(ruta)
     destino.parent.mkdir(parents=True, exist_ok=True)
-    datos = {campo: (list(valor) if isinstance(valor, tuple) else valor)
-             for campo, valor in vars(palette).items()}
+    datos = {
+        campo: (list(valor) if isinstance(valor, tuple) else valor)
+        for campo, valor in vars(palette).items()
+    }
     destino.write_text(json.dumps(datos, indent=2, ensure_ascii=False), encoding="utf-8")
     return destino
 

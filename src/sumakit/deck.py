@@ -42,6 +42,7 @@ from . import theme
 def pd_api_numerica(serie) -> bool:
     return pd.api.types.is_numeric_dtype(serie)
 
+
 __all__ = ["Deck", "TituloNoAccionable"]
 
 # Geometría en pulgadas, 16:9. Sale del mockup validado a 96 px/pulgada.
@@ -107,8 +108,9 @@ class Deck:
         fondo.fore_color.rgb = self._fondo
         return s
 
-    def _texto_realzado(self, s, x, y, w, h, texto, *, size, color=None,
-                        realce=None, espaciado=1.2):
+    def _texto_realzado(
+        self, s, x, y, w, h, texto, *, size, color=None, realce=None, espaciado=1.2
+    ):
         """Texto donde la porción entre **asteriscos** va en el color de acento.
 
         Es el recurso del deck de referencia: la segunda mitad del título en
@@ -131,8 +133,22 @@ class Deck:
             run.font.color.rgb = (realce or self._acento) if destacado else (color or self._tinta)
         return caja
 
-    def _texto(self, s, x, y, w, h, texto, *, size=14, color=None, bold=False,
-               align=PP_ALIGN.LEFT, anchor=MSO_ANCHOR.TOP, espaciado=1.15):
+    def _texto(
+        self,
+        s,
+        x,
+        y,
+        w,
+        h,
+        texto,
+        *,
+        size=14,
+        color=None,
+        bold=False,
+        align=PP_ALIGN.LEFT,
+        anchor=MSO_ANCHOR.TOP,
+        espaciado=1.15,
+    ):
         caja = s.shapes.add_textbox(Inches(x), Inches(y), Inches(w), Inches(h))
         tf = caja.text_frame
         tf.word_wrap = True
@@ -150,8 +166,10 @@ class Deck:
 
     def _banda(self, s, y, h):
         from pptx.enum.shapes import MSO_SHAPE
-        forma = s.shapes.add_shape(MSO_SHAPE.RECTANGLE, Emu(0), Inches(y),
-                                   self.prs.slide_width, Inches(h))
+
+        forma = s.shapes.add_shape(
+            MSO_SHAPE.RECTANGLE, Emu(0), Inches(y), self.prs.slide_width, Inches(h)
+        )
         forma.fill.solid()
         forma.fill.fore_color.rgb = self._acento
         forma.line.fill.background()
@@ -160,15 +178,24 @@ class Deck:
 
     def _pie(self, s):
         if self.footer:
-            self._texto(s, _ANCHO - _MARGEN - 3.0, _ALTO - _PIE_H - 0.22, 3.0, _PIE_H,
-                        self.footer, size=9, color=self._suave, align=PP_ALIGN.RIGHT)
+            self._texto(
+                s,
+                _ANCHO - _MARGEN - 3.0,
+                _ALTO - _PIE_H - 0.22,
+                3.0,
+                _PIE_H,
+                self.footer,
+                size=9,
+                color=self._suave,
+                align=PP_ALIGN.RIGHT,
+            )
 
     def _encabezado(self, s, kicker: str, titulo: str):
         if kicker:
-            self._texto(s, _MARGEN, _KICKER_Y, _ANCHO_UTIL, _KICKER_H,
-                        kicker, size=11, color=self._suave)
-        self._texto_realzado(s, _MARGEN, _TITULO_Y, _ANCHO_UTIL, _TITULO_H,
-                             titulo, size=18)
+            self._texto(
+                s, _MARGEN, _KICKER_Y, _ANCHO_UTIL, _KICKER_H, kicker, size=11, color=self._suave
+            )
+        self._texto_realzado(s, _MARGEN, _TITULO_Y, _ANCHO_UTIL, _TITULO_H, titulo, size=18)
 
     def _validar_titulo(self, titulo: str) -> None:
         if not self.strict:
@@ -188,22 +215,27 @@ class Deck:
         s = self._lamina()
         self._banda(s, 0, 0.15)
         self._banda(s, _ALTO - 0.55, 0.55)
-        self._texto_realzado(s, _MARGEN, 3.1, _ANCHO_UTIL * 0.72, 1.4,
-                             self.title, size=30)
+        self._texto_realzado(s, _MARGEN, 3.1, _ANCHO_UTIL * 0.72, 1.4, self.title, size=30)
         if self.subtitle:
-            self._texto(s, _MARGEN, 4.35, _ANCHO_UTIL * 0.72, 0.5, self.subtitle,
-                        size=14, color=self._suave)
+            self._texto(
+                s, _MARGEN, 4.35, _ANCHO_UTIL * 0.72, 0.5, self.subtitle, size=14, color=self._suave
+            )
         return s
 
     def agenda(self, items: list[str], *, title: str = "Agenda"):
         """Índice: una banda con los puntos centrados, como el deck de referencia."""
         s = self._lamina()
-        self._texto(s, _MARGEN, _KICKER_Y, _ANCHO_UTIL, _KICKER_H,
-                    title, size=13, color=self._suave)
+        self._texto(
+            s, _MARGEN, _KICKER_Y, _ANCHO_UTIL, _KICKER_H, title, size=13, color=self._suave
+        )
         alto = 0.52 * len(items) + 0.6
         self._banda(s, (_ALTO - alto) / 2, alto)
-        caja = s.shapes.add_textbox(Inches(_MARGEN), Inches((_ALTO - alto) / 2 + 0.35),
-                                    Inches(_ANCHO_UTIL), Inches(alto - 0.7))
+        caja = s.shapes.add_textbox(
+            Inches(_MARGEN),
+            Inches((_ALTO - alto) / 2 + 0.35),
+            Inches(_ANCHO_UTIL),
+            Inches(alto - 0.7),
+        )
         tf = caja.text_frame
         tf.word_wrap = True
         for i, item in enumerate(items):
@@ -222,9 +254,17 @@ class Deck:
         """Separador de sección: banda ancha con el nombre."""
         s = self._lamina()
         self._banda(s, 2.9, 1.5)
-        self._texto(s, _MARGEN, 3.25, _ANCHO_UTIL, 0.9, name,
-                    size=26, color=RGBColor.from_string("FFFFFF"),
-                    anchor=MSO_ANCHOR.MIDDLE)
+        self._texto(
+            s,
+            _MARGEN,
+            3.25,
+            _ANCHO_UTIL,
+            0.9,
+            name,
+            size=26,
+            color=RGBColor.from_string("FFFFFF"),
+            anchor=MSO_ANCHOR.MIDDLE,
+        )
         return s
 
     def finding(
@@ -303,20 +343,24 @@ class Deck:
         if alto > _CUERPO_H:
             alto, ancho = _CUERPO_H, _CUERPO_H * proporcion
         x = _MARGEN + (disponible - ancho) / 2
-        return s.shapes.add_picture(str(ruta), Inches(x), Inches(_CUERPO_Y),
-                                    width=Inches(ancho), height=Inches(alto))
+        return s.shapes.add_picture(
+            str(ruta), Inches(x), Inches(_CUERPO_Y), width=Inches(ancho), height=Inches(alto)
+        )
 
     def _callout(self, s, texto: str, fx: float, fy: float, ancho: float = 2.9):
-        return self._callout_abs(s, texto, _MARGEN + fx * _ANCHO_UTIL,
-                                 _CUERPO_Y + fy * _CUERPO_H, ancho)
+        return self._callout_abs(
+            s, texto, _MARGEN + fx * _ANCHO_UTIL, _CUERPO_Y + fy * _CUERPO_H, ancho
+        )
 
     def _callout_abs(self, s, texto: str, x: float, y: float, ancho: float):
         from pptx.enum.shapes import MSO_SHAPE
+
         caracteres_por_linea = max(18, int(ancho * 15))
         lineas = len(texto) // caracteres_por_linea + 1
         alto = 0.30 + 0.21 * lineas
-        forma = s.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(x), Inches(y),
-                                   Inches(ancho), Inches(alto))
+        forma = s.shapes.add_shape(
+            MSO_SHAPE.ROUNDED_RECTANGLE, Inches(x), Inches(y), Inches(ancho), Inches(alto)
+        )
         forma.fill.solid()
         forma.fill.fore_color.rgb = self._fondo
         forma.line.color.rgb = self._acento
@@ -343,8 +387,14 @@ class Deck:
 
         recorte = data.head(max_rows)
         filas, cols = recorte.shape[0] + 1, recorte.shape[1] + 1
-        forma = s.shapes.add_table(filas, cols, Inches(_MARGEN), Inches(_CUERPO_Y),
-                                   Inches(_ANCHO_UTIL), Inches(min(_CUERPO_H, 0.36 * filas)))
+        forma = s.shapes.add_table(
+            filas,
+            cols,
+            Inches(_MARGEN),
+            Inches(_CUERPO_Y),
+            Inches(_ANCHO_UTIL),
+            Inches(min(_CUERPO_H, 0.36 * filas)),
+        )
         tabla = forma.table
         # El estilo por defecto de Office pinta bandas azules. Se apaga y se
         # dibuja a mano: encabezado con el acento, filas sobre el fondo.
@@ -360,18 +410,19 @@ class Deck:
         # Repartir el ancho por el largo del contenido: en partes iguales, el
         # nombre de una variable queda apretado y un número queda con aire.
         indices = [str(v) for v in recorte.index]
-        pesos = [max(len(str(recorte.index.name or "")),
-                     *(len(t) for t in indices)) if indices else 6]
+        pesos = [
+            max(len(str(recorte.index.name or "")), *(len(t) for t in indices)) if indices else 6
+        ]
         for col in recorte.columns:
             textos = [f"{v:,.4g}" if isinstance(v, float) else str(v) for v in recorte[col]]
-            pesos.append(max(len(str(col)), *(len(t) for t in textos)) if textos
-                         else len(str(col)))
+            pesos.append(max(len(str(col)), *(len(t) for t in textos)) if textos else len(str(col)))
         total = sum(pesos)
         for col_t, peso in zip(tabla.columns, pesos, strict=True):
             col_t.width = Emu(int(Inches(_ANCHO_UTIL) * peso / total))
 
-        numericas = {j for j, col in enumerate(recorte.columns, start=1)
-                     if pd_api_numerica(recorte[col])}
+        numericas = {
+            j for j, col in enumerate(recorte.columns, start=1) if pd_api_numerica(recorte[col])
+        }
         blanco = RGBColor.from_string("FFFFFF")
         for i, fila_t in enumerate(tabla.rows):
             for j, celda in enumerate(fila_t.cells):
@@ -388,8 +439,15 @@ class Deck:
         self._pie(s)
         return s
 
-    def hero(self, numero: str, etiqueta: str, *, kicker: str = "",
-             contexto: str = "", image: str | Path | None = None):
+    def hero(
+        self,
+        numero: str,
+        etiqueta: str,
+        *,
+        kicker: str = "",
+        contexto: str = "",
+        image: str | Path | None = None,
+    ):
         """Una cifra a tamaño grande, con su etiqueta y su contexto.
 
         Cuando el mensaje es un solo número, un gráfico lo entierra. La forma
@@ -397,15 +455,14 @@ class Deck:
         """
         s = self._lamina()
         if kicker:
-            self._texto(s, _MARGEN, _KICKER_Y, _ANCHO_UTIL, _KICKER_H,
-                        kicker, size=11, color=self._suave)
+            self._texto(
+                s, _MARGEN, _KICKER_Y, _ANCHO_UTIL, _KICKER_H, kicker, size=11, color=self._suave
+            )
         ancho = _ANCHO_UTIL * (0.45 if image else 1.0)
-        self._texto(s, _MARGEN, 2.3, ancho, 1.5, numero,
-                    size=66, bold=True, color=self._acento)
+        self._texto(s, _MARGEN, 2.3, ancho, 1.5, numero, size=66, bold=True, color=self._acento)
         self._texto(s, _MARGEN, 3.75, ancho, 0.6, etiqueta, size=20)
         if contexto:
-            self._texto(s, _MARGEN, 4.45, ancho, 1.2, contexto,
-                        size=13, color=self._suave)
+            self._texto(s, _MARGEN, 4.45, ancho, 1.2, contexto, size=13, color=self._suave)
         if image:
             self._imagen(s, image, fraccion=0.5)
         self._pie(s)

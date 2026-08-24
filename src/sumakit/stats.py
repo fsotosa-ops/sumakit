@@ -43,8 +43,15 @@ def outliers(df: pd.DataFrame, *, method: str = "iqr", threshold: float = 3.0) -
     for col in num.columns:
         s = num[col].dropna()
         if s.empty:
-            rows.append({"n_outliers": 0, "pct_outliers": 0.0, "lower": np.nan,
-                         "upper": np.nan, "method": method})
+            rows.append(
+                {
+                    "n_outliers": 0,
+                    "pct_outliers": 0.0,
+                    "lower": np.nan,
+                    "upper": np.nan,
+                    "method": method,
+                }
+            )
             continue
 
         if method == "iqr":
@@ -72,13 +79,15 @@ def outliers(df: pd.DataFrame, *, method: str = "iqr", threshold: float = 3.0) -
 
         mask = (s < lower) | (s > upper)
         n_out = int(mask.sum())
-        rows.append({
-            "n_outliers": n_out,
-            "pct_outliers": round(100 * n_out / len(s), 2),
-            "lower": float(lower),
-            "upper": float(upper),
-            "method": method,
-        })
+        rows.append(
+            {
+                "n_outliers": n_out,
+                "pct_outliers": round(100 * n_out / len(s), 2),
+                "lower": float(lower),
+                "upper": float(upper),
+                "method": method,
+            }
+        )
     return pd.DataFrame(rows, index=pd.Index(num.columns, name="column"))
 
 
@@ -126,14 +135,16 @@ def sum_constant_groups(
 
     muestra = (
         completo.sample(search_rows, random_state=random_state)
-        if len(completo) > search_rows else completo
+        if len(completo) > search_rows
+        else completo
     )
 
     encontrados: list[tuple[float, tuple[str, ...]]] = []
     for constante in sorted(set(constants)):
         # Una composición es no negativa y ninguna parte supera el total.
         candidatas = [
-            c for c in muestra.columns
+            c
+            for c in muestra.columns
             if muestra[c].min() >= -tol
             and muestra[c].max() <= constante + tol
             and completo[c].nunique() > 1
@@ -198,11 +209,13 @@ def sum_constant_groups(
         if usadas.intersection(cols):
             continue
         usadas.update(cols)
-        salida.append({
-            "constant": constante,
-            "n_columns": n,
-            "columns": ", ".join(cols),
-        })
+        salida.append(
+            {
+                "constant": constante,
+                "n_columns": n,
+                "columns": ", ".join(cols),
+            }
+        )
 
     return pd.DataFrame(salida).sort_values("n_columns", ascending=False).reset_index(drop=True)
 
@@ -256,15 +269,33 @@ def distribution_report(
     """
     num = _numeric(df)
     if num.empty:
-        return pd.DataFrame(columns=["skew", "kurtosis", "cv", "pct_zeros",
-                                     "pct_outliers", "acotada", "composicional",
-                                     "suggested_scaler", "reason"])
+        return pd.DataFrame(
+            columns=[
+                "skew",
+                "kurtosis",
+                "cv",
+                "pct_zeros",
+                "pct_outliers",
+                "acotada",
+                "composicional",
+                "suggested_scaler",
+                "reason",
+            ]
+        )
 
     n = len(df)
     if exclude_ids:
-        num = num[[c for c in num.columns
-                   if not (n and num[c].nunique(dropna=True) == n
-                           and not pd.api.types.is_float_dtype(num[c]))]]
+        num = num[
+            [
+                c
+                for c in num.columns
+                if not (
+                    n
+                    and num[c].nunique(dropna=True) == n
+                    and not pd.api.types.is_float_dtype(num[c])
+                )
+            ]
+        ]
         if num.empty:
             return distribution_report(df, exclude_ids=False, compositional=compositional)
 
@@ -288,8 +319,10 @@ def distribution_report(
 
         if col in en_grupo:
             escalador = "ninguno"
-            razon = ("parte de un grupo que suma constante: escalarla rompe la suma. "
-                     "El tratamiento es log-ratio o eliminar una categoría del grupo")
+            razon = (
+                "parte de un grupo que suma constante: escalarla rompe la suma. "
+                "El tratamiento es log-ratio o eliminar una categoría del grupo"
+            )
         elif techo is not None:
             escalador = "ninguno"
             razon = f"ya acotada en [0,{techo:g}]: comparable con sus pares sin escalar"
@@ -297,8 +330,10 @@ def distribution_report(
             motivos = []
             if abs(skew) > skew_threshold:
                 if pct_ceros > zeros_threshold:
-                    motivos.append(f"asimetría {skew:.2f} por masa en cero ({pct_ceros:.0f}%), "
-                                   "no por cola: escalar no lo arregla")
+                    motivos.append(
+                        f"asimetría {skew:.2f} por masa en cero ({pct_ceros:.0f}%), "
+                        "no por cola: escalar no lo arregla"
+                    )
                 else:
                     motivos.append(f"cola pesada, asimetría {skew:.2f}")
             if pct_out > outlier_threshold:
@@ -306,17 +341,22 @@ def distribution_report(
             escalador = "robust" if motivos else "standard"
             razon = "; ".join(motivos) if motivos else "distribución contenida"
 
-        filas.append({
-            "skew": round(skew, 3), "kurtosis": round(kurt, 3),
-            "cv": round(cv, 3) if not np.isnan(cv) else np.nan,
-            "pct_zeros": pct_ceros, "pct_outliers": pct_out,
-            "acotada": techo is not None, "composicional": col in en_grupo,
-            "suggested_scaler": escalador, "reason": razon,
-        })
+        filas.append(
+            {
+                "skew": round(skew, 3),
+                "kurtosis": round(kurt, 3),
+                "cv": round(cv, 3) if not np.isnan(cv) else np.nan,
+                "pct_zeros": pct_ceros,
+                "pct_outliers": pct_out,
+                "acotada": techo is not None,
+                "composicional": col in en_grupo,
+                "suggested_scaler": escalador,
+                "reason": razon,
+            }
+        )
 
-    return (
-        pd.DataFrame(filas, index=pd.Index(num.columns, name="column"))
-        .sort_values("skew", key=lambda s: s.abs(), ascending=False)
+    return pd.DataFrame(filas, index=pd.Index(num.columns, name="column")).sort_values(
+        "skew", key=lambda s: s.abs(), ascending=False
     )
 
 
@@ -378,10 +418,7 @@ def target_report(df: pd.DataFrame, target: str, *, method: str = "pearson") -> 
     # Una variable sin varianza no tiene relación con nada: su correlación es
     # NaN y numpy avisa por división por cero. Se excluye, igual que la
     # excluiría cualquier modelo.
-    features = [
-        c for c in num.columns
-        if c != target and num[c].nunique(dropna=True) > 1
-    ]
+    features = [c for c in num.columns if c != target and num[c].nunique(dropna=True) > 1]
     if not features:
         return pd.DataFrame(columns=["corr", "abs_corr"])
 
@@ -396,9 +433,7 @@ def target_report(df: pd.DataFrame, target: str, *, method: str = "pearson") -> 
     else:
         subset = num[features + [target]].dropna()
         if len(subset) > 3:
-            mi = mutual_info_regression(
-                subset[features], subset[target], random_state=0
-            )
+            mi = mutual_info_regression(subset[features], subset[target], random_state=0)
             out["mutual_info"] = pd.Series(mi, index=features).round(4)
 
     return out.sort_values("abs_corr", ascending=False)

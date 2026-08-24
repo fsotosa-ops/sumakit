@@ -38,16 +38,18 @@ def test_lab_del_blanco():
 def test_el_rojo_y_el_verde_colapsan_con_deuteranopia():
     """El caso de manual: son el par que más se confunde."""
     normal = color.delta_e("#e34948", "#008300")
-    simulado = color.delta_e(color.simular_cvd("#e34948", "deuteranopía"),
-                             color.simular_cvd("#008300", "deuteranopía"))
+    simulado = color.delta_e(
+        color.simular_cvd("#e34948", "deuteranopía"), color.simular_cvd("#008300", "deuteranopía")
+    )
     assert normal > 100
     assert simulado < 20, "debería colapsar y no lo hace"
 
 
 def test_el_azul_y_el_naranja_sobreviven():
     """Es el par seguro por excelencia, y por eso son los dos primeros slots."""
-    simulado = color.delta_e(color.simular_cvd("#2a78d6", "deuteranopía"),
-                             color.simular_cvd("#eb6834", "deuteranopía"))
+    simulado = color.delta_e(
+        color.simular_cvd("#2a78d6", "deuteranopía"), color.simular_cvd("#eb6834", "deuteranopía")
+    )
     assert simulado > 50
 
 
@@ -58,6 +60,7 @@ def test_tipo_de_daltonismo_invalido():
 
 # --- validación de paletas --------------------------------------------------
 
+
 def test_la_paleta_por_defecto_pasa_los_chequeos_de_separacion():
     out = theme.validate(theme.LIGHT)
     separacion = out[out["chequeo"].str.startswith("separación")]
@@ -66,9 +69,15 @@ def test_la_paleta_por_defecto_pasa_los_chequeos_de_separacion():
 
 def test_detecta_una_paleta_indistinguible():
     mala = theme.Palette(
-        name="mala", categorical=("#2a78d6", "#2b79d7"),
-        sequential=theme.LIGHT.sequential, diverging_low="#000", diverging_high="#fff",
-        neutral="#eee", surface="#ffffff", text_primary="#000", text_secondary="#555",
+        name="mala",
+        categorical=("#2a78d6", "#2b79d7"),
+        sequential=theme.LIGHT.sequential,
+        diverging_low="#000",
+        diverging_high="#fff",
+        neutral="#eee",
+        surface="#ffffff",
+        text_primary="#000",
+        text_secondary="#555",
         grid="#ddd",
     )
     out = theme.validate(mala)
@@ -78,9 +87,15 @@ def test_detecta_una_paleta_indistinguible():
 
 def test_detecta_un_color_que_se_pierde_en_el_fondo():
     invisible = theme.Palette(
-        name="invisible", categorical=("#fdfdfd", "#2a78d6"),
-        sequential=theme.LIGHT.sequential, diverging_low="#000", diverging_high="#fff",
-        neutral="#eee", surface="#ffffff", text_primary="#000", text_secondary="#555",
+        name="invisible",
+        categorical=("#fdfdfd", "#2a78d6"),
+        sequential=theme.LIGHT.sequential,
+        diverging_low="#000",
+        diverging_high="#fff",
+        neutral="#eee",
+        surface="#ffffff",
+        text_primary="#000",
+        text_secondary="#555",
         grid="#ddd",
     )
     fila = theme.validate(invisible).iloc[0]
@@ -92,8 +107,10 @@ def test_all_pairs_es_mas_exigente_que_adyacentes():
     adyacentes = theme.validate(theme.LIGHT)
     todos = theme.validate(theme.LIGHT, all_pairs=True)
     sep = "separación (visión normal)"
-    assert (todos[todos["chequeo"] == sep]["valor"].iloc[0]
-            <= adyacentes[adyacentes["chequeo"] == sep]["valor"].iloc[0])
+    assert (
+        todos[todos["chequeo"] == sep]["valor"].iloc[0]
+        <= adyacentes[adyacentes["chequeo"] == sep]["valor"].iloc[0]
+    )
 
 
 def test_exige_al_menos_dos_colores():

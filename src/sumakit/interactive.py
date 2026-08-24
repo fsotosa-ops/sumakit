@@ -37,16 +37,39 @@ def apply_theme(palette: theme.Palette | None = None) -> None:
                 "background": pal.surface,
                 "view": {"stroke": "transparent", "continuousWidth": 480, "continuousHeight": 300},
                 "font": "Helvetica Neue, Helvetica, Arial, sans-serif",
-                "title": {"anchor": "start", "fontSize": 14, "fontWeight": "normal",
-                          "color": pal.text_primary, "subtitleColor": pal.text_secondary},
-                "axis": {"grid": False, "domainColor": pal.grid, "tickColor": pal.grid,
-                         "labelColor": pal.text_secondary, "titleColor": pal.text_secondary,
-                         "labelFontSize": 11, "titleFontSize": 11, "titleFontWeight": "normal"},
-                "axisY": {"grid": True, "gridColor": pal.grid, "gridOpacity": 0.5, "domain": False,
-                          "ticks": False},
-                "legend": {"labelColor": pal.text_secondary, "titleColor": pal.text_secondary,
-                           "labelFontSize": 11, "titleFontSize": 11, "titleFontWeight": "normal",
-                           "symbolType": "stroke", "symbolStrokeWidth": 3},
+                "title": {
+                    "anchor": "start",
+                    "fontSize": 14,
+                    "fontWeight": "normal",
+                    "color": pal.text_primary,
+                    "subtitleColor": pal.text_secondary,
+                },
+                "axis": {
+                    "grid": False,
+                    "domainColor": pal.grid,
+                    "tickColor": pal.grid,
+                    "labelColor": pal.text_secondary,
+                    "titleColor": pal.text_secondary,
+                    "labelFontSize": 11,
+                    "titleFontSize": 11,
+                    "titleFontWeight": "normal",
+                },
+                "axisY": {
+                    "grid": True,
+                    "gridColor": pal.grid,
+                    "gridOpacity": 0.5,
+                    "domain": False,
+                    "ticks": False,
+                },
+                "legend": {
+                    "labelColor": pal.text_secondary,
+                    "titleColor": pal.text_secondary,
+                    "labelFontSize": 11,
+                    "titleFontSize": 11,
+                    "titleFontWeight": "normal",
+                    "symbolType": "stroke",
+                    "symbolStrokeWidth": 3,
+                },
                 "range": {"category": list(pal.categorical)},
                 "line": {"strokeWidth": 2.5},
                 "point": {"size": 60, "filled": True},
@@ -144,9 +167,7 @@ def concentration_curve(
     Va sobre datos agregados —unas decenas de filas—, que es donde Altair
     rinde. Para distribuciones sobre datos crudos, usa `plots`.
     """
-    tabla = concentration_table(
-        df, columns, by=by, filter_by=filter_by, max_levels=max_levels
-    )
+    tabla = concentration_table(df, columns, by=by, filter_by=filter_by, max_levels=max_levels)
     if tabla.empty:
         raise ValueError("no hay filas con suma positiva para construir la curva")
 
@@ -154,8 +175,12 @@ def concentration_curve(
 
     codificacion = {
         "x": alt.X("rango:O", title=f"partes acumuladas (de {len(columns)})"),
-        "y": alt.Y("acumulado:Q", title="proporción acumulada del consumo",
-                   scale=alt.Scale(domain=[0, 1]), axis=alt.Axis(format="%")),
+        "y": alt.Y(
+            "acumulado:Q",
+            title="proporción acumulada del consumo",
+            scale=alt.Scale(domain=[0, 1]),
+            axis=alt.Axis(format="%"),
+        ),
         "tooltip": [
             alt.Tooltip("rango:O", title="parte"),
             alt.Tooltip("acumulado:Q", title="acumulado", format=".1%"),
@@ -175,9 +200,7 @@ def concentration_curve(
     if filter_by is not None:
         opciones = sorted(tabla[filter_by].dropna().unique().tolist())
         desplegable = alt.binding_select(options=opciones, name=f"{filter_by}:  ")
-        corte = alt.selection_point(
-            fields=[filter_by], bind=desplegable, value=opciones[0]
-        )
+        corte = alt.selection_point(fields=[filter_by], bind=desplegable, value=opciones[0])
         capas = capas.add_params(corte).transform_filter(corte)
 
     grafico = (
@@ -188,8 +211,9 @@ def concentration_curve(
             height=320,
             title=alt.TitleParams(
                 title or "Concentración del consumo",
-                subtitle=subtitle or "Cada parte es la mayor restante: si la curva salta a 100% "
-                                     "en la primera, el consumo ocurre en una sola.",
+                subtitle=subtitle
+                or "Cada parte es la mayor restante: si la curva salta a 100% "
+                "en la primera, el consumo ocurre en una sola.",
             ),
         )
     )
