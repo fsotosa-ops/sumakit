@@ -13,6 +13,10 @@ repos:
       - id: ruff-check
         args: [--fix]
       - id: ruff-format
+        # También los bloques de Python del README. Sin esto, el CI —que corre
+        # `ruff format .` sobre todo— encuentra lo que el gancho dejó pasar, que
+        # es justo lo que el gancho viene a evitar.
+        types_or: [python, pyi, markdown]
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0

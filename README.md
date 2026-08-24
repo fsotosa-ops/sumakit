@@ -19,8 +19,8 @@ pip install "sumakit[all]"      # todo
 ```python
 from sumakit import studio
 
-client = studio.StudioClient("sk_...")   # la clave que da la app
-client.publish(alerts, "alertas")        # un DataFrame → una tabla del proyecto
+client = studio.StudioClient("sk_...")  # la clave que da la app
+client.publish(alerts, "alertas")  # un DataFrame → una tabla del proyecto
 ```
 
 `connect()` y `publish()` sueltas guardan un cliente por defecto y existen por
