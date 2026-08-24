@@ -1,4 +1,5 @@
 import matplotlib
+
 matplotlib.use("Agg")  # sin backend gráfico: los tests no abren ventanas
 
 import numpy as np

@@ -30,12 +30,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pandas as pd
 from pptx import Presentation
 from pptx.dml.color import RGBColor
 from pptx.enum.text import MSO_ANCHOR, PP_ALIGN
 from pptx.util import Emu, Inches, Pt
-
-import pandas as pd
 
 from . import theme
 
@@ -368,7 +367,7 @@ class Deck:
             pesos.append(max(len(str(col)), *(len(t) for t in textos)) if textos
                          else len(str(col)))
         total = sum(pesos)
-        for col_t, peso in zip(tabla.columns, pesos):
+        for col_t, peso in zip(tabla.columns, pesos, strict=True):
             col_t.width = Emu(int(Inches(_ANCHO_UTIL) * peso / total))
 
         numericas = {j for j, col in enumerate(recorte.columns, start=1)
@@ -413,6 +412,7 @@ class Deck:
         return s
 
     def closing(self, text: str = ""):
+        """Lámina de cierre: dos bandas y, si se da, una frase."""
         s = self._lamina()
         self._banda(s, 0, 0.15)
         self._banda(s, _ALTO - 0.55, 0.55)
@@ -423,12 +423,14 @@ class Deck:
     # --- salida -------------------------------------------------------------
 
     def save(self, path: str | Path) -> Path:
+        """Escribe el `.pptx` y devuelve la ruta, creando las carpetas que falten."""
         ruta = Path(path)
         ruta.parent.mkdir(parents=True, exist_ok=True)
         self.prs.save(str(ruta))
         return ruta
 
     def __len__(self) -> int:
+        """Cuántas láminas lleva el deck."""
         return len(self.prs.slides)
 
     @property
@@ -437,4 +439,5 @@ class Deck:
         return self.palette.name.endswith("dark")
 
     def __repr__(self) -> str:
+        """Título y número de láminas: lo que se quiere ver en un notebook."""
         return f"Deck({self.title!r}, {len(self)} láminas)"

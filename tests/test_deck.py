@@ -1,6 +1,7 @@
 """El deck impone la gramática de consultoría, no solo dibuja láminas."""
 
 import matplotlib
+
 matplotlib.use("Agg")
 
 import pandas as pd
@@ -160,7 +161,6 @@ def test_el_encabezado_de_la_tabla_usa_el_acento():
 
 def test_la_figura_ocupa_el_ancho_disponible(figura):
     """Escalar solo por altura dejaba media lámina vacía."""
-    from pptx.util import Inches as _In
     d = Deck("d")
     s = d.finding(HALLAZGO, image=figura)
     img = next(sh for sh in s.shapes if sh.shape_type == 13)

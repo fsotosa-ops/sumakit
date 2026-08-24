@@ -54,7 +54,7 @@ def _celda(fuente: str, etiqueta: str | None = None) -> dict:
     return {
         "cell_type": "code", "id": uuid.uuid4().hex[:8], "execution_count": None,
         "metadata": {}, "outputs": [],
-        "source": [l + "\n" for l in lineas[:-1]] + [lineas[-1]],
+        "source": [linea + "\n" for linea in lineas[:-1]] + [lineas[-1]],
     }
 
 

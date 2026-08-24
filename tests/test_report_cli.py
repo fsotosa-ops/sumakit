@@ -4,7 +4,6 @@ La prueba que importa es que funcione en un directorio recién creado que no
 sabe nada del proyecto donde nació.
 """
 
-from pathlib import Path
 
 import pytest
 import yaml

@@ -37,6 +37,7 @@ class Exploration:
     figures: dict[str, Figure] = field(default_factory=dict)
 
     def __repr__(self) -> str:
+        """El recuento, que es lo que se mira primero al volver a un notebook."""
         return (
             f"Exploration({len(self.alerts)} alertas, "
             f"{len(self.overview)} columnas, {len(self.figures)} figuras)"

@@ -8,7 +8,6 @@ para que puedas encadenarlos, incrustarlos en un informe o escribir
 
 from __future__ import annotations
 
-import numpy as np
 import pandas as pd
 
 __all__ = [
@@ -279,7 +278,9 @@ def alerts(
     if not pares.empty:
         detalle = "; ".join(
             f"{a}~{b} (r={r:.2f})"
-            for a, b, r in zip(pares["feature_a"], pares["feature_b"], pares["r"])
+            for a, b, r in zip(
+                pares["feature_a"], pares["feature_b"], pares["r"], strict=True
+            )
         )
         añadir("alta", "colinealidad",
                sorted(set(pares["feature_a"]) | set(pares["feature_b"])),
@@ -289,9 +290,15 @@ def alerts(
     graves = ov.index[ov["pct_missing"] > 50].tolist()
     medios = ov.index[(ov["pct_missing"] > missing_pct) & (ov["pct_missing"] <= 50)].tolist()
     if graves:
-        añadir("alta", "nulos", graves, "más de la mitad de los valores ausentes: imputar aquí inventa datos.")
+        añadir(
+            "alta", "nulos", graves,
+            "más de la mitad de los valores ausentes: imputar aquí inventa datos.",
+        )
     if medios:
-        añadir("media", "nulos", medios, f"entre {missing_pct:g}% y 50% de nulos: decide imputación o descarte.")
+        añadir(
+            "media", "nulos", medios,
+            f"entre {missing_pct:g}% y 50% de nulos: decide imputación o descarte.",
+        )
 
     # --- ceros: importan porque el logaritmo de cero no existe --------------
     muchos_ceros = ov.index[ov["pct_zeros"] > zeros_pct].tolist()

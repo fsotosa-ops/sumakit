@@ -14,7 +14,7 @@ devuelven `Figure`. Nada dibuja por su cuenta ni muta estado global.
 alimenta el deck y el informe, sin exportar un CSV a mano.
 """
 
-from . import deck, studio, interactive, nb, plots, profile, stats, theme
+from . import deck, interactive, nb, plots, profile, stats, studio, theme
 from .exploration import Exploration, explore
 
 __version__ = "0.1.0"

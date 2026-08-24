@@ -202,7 +202,6 @@ def test_formato_adaptativo_conserva_las_proporciones_chicas():
 
 
 def test_formato_adaptativo_casos_limite():
-    import numpy as np
     from sumakit.nb import adaptive_float
     assert adaptive_float(0.0) == "0"
     assert adaptive_float(12.5) == "12.50"

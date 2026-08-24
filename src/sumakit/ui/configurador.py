@@ -17,10 +17,10 @@ import json
 from pathlib import Path
 
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
 import streamlit as st
 
 # Absolutos y no relativos: `streamlit run` ejecuta este archivo como
@@ -96,6 +96,7 @@ def _lamina_ejemplo(pal: theme.Palette):
 
 
 def principal() -> None:
+    """Corre el configurador de tema en Streamlit."""
     st.set_page_config(page_title="Tema · sumakit", layout="wide")
     base = theme.LIGHT
 

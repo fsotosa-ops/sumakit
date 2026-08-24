@@ -144,7 +144,20 @@ def sum_constant_groups(
         arreglos = {c: muestra[c].to_numpy(dtype=float) for c in candidatas}
         nodos = 0
 
-        def explorar(inicio_idx: int, grupo: list[str], acumulado):
+        def explorar(
+            inicio_idx: int,
+            grupo: list[str],
+            acumulado: np.ndarray,
+            # Atadas en la definición a propósito. `explorar` se define y se
+            # llama dentro de la misma vuelta del bucle, así que hoy la ligadura
+            # tardía no muerde; escribirlas es lo que impide que muerda el día
+            # que alguien mueva la llamada fuera del bucle. Es B023 de ruff, y
+            # el aviso vale aunque el caso de hoy sea benigno.
+            *,
+            candidatas: list[str] = candidatas,
+            arreglos: dict[str, np.ndarray] = arreglos,
+            constante: float = constante,
+        ) -> None:
             nonlocal nodos
             for i in range(inicio_idx, len(candidatas)):
                 if nodos >= node_budget:
