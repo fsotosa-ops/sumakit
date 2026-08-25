@@ -18,20 +18,34 @@ jobs:
       - name: Instalar
         run: uv sync --all-extras
 
-      # El SDK antes que nada: si `import sumakit.studio` arrastra matplotlib,
-      # las capas son una declaración en el pyproject y no un hecho. Se prueba
-      # en un entorno donde SOLO está el núcleo instalado.
-      - name: El núcleo se instala y se usa solo
+      # La regresión que motivó esto: en Colab, un `pip install sumakit` a secas
+      # instalaba un paquete que no podía dibujar, porque el EDA vivía tras un
+      # extra. Ahora el núcleo hace el taller completo, y esto lo fija en un
+      # entorno donde SOLO está el núcleo instalado.
+      - name: Un `pip install sumakit` a secas hace el taller
         run: |
-          uv venv /tmp/solo-sdk
-          VIRTUAL_ENV=/tmp/solo-sdk uv pip install .
-          /tmp/solo-sdk/bin/python -c "
+          uv venv /tmp/solo-nucleo
+          VIRTUAL_ENV=/tmp/solo-nucleo uv pip install .
+          /tmp/solo-nucleo/bin/python -c "
           import sys
-          from sumakit import studio
-          pesadas = [m for m in ('matplotlib','seaborn','altair','pptx') if m in sys.modules]
-          assert not pesadas, f'el SDK arrastró {pesadas}'
-          studio.StudioClient('sk_x')
-          print('el núcleo corre sin los extras')
+          import pandas as pd
+          import sumakit
+          from sumakit import profile
+
+          # Importar el paquete no puede levantar matplotlib: se paga al usarlo.
+          # Sin esto, abrir un notebook para mirar una tabla cuesta el arranque
+          # entero de seaborn.
+          pesadas = [m for m in ('matplotlib', 'seaborn', 'pptx') if m in sys.modules]
+          assert not pesadas, f'importar sumakit arrastró {pesadas}'
+
+          df = pd.DataFrame({'a': [1, 2, 2, None], 'b': list('xyyz')})
+          assert not profile.alerts(df).empty
+          profile.as_markdown(profile.alerts(df), index=False)  # necesita tabulate
+
+          from sumakit import plots
+          plots.distributions(df)  # necesita matplotlib y seaborn
+          from sumakit.deck import Deck  # necesita python-pptx
+          print('el núcleo hace el taller sin pedir extras')
           "
 
       - name: Lint

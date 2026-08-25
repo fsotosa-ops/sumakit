@@ -1,19 +1,6 @@
-"""sumakit — el SDK de Suma Studio, con las utilidades de EDA que lo rodean.
+"""sumakit — utilidades para talleres de ciencia de datos y machine learning.
 
-El núcleo es el puente al proyecto y solo necesita `pandas`:
-
-    from sumakit import studio
-
-    client = studio.StudioClient("sk_...")
-    client.publish(alerts, "alertas")
-
-Sirve igual en una celda de Colab, en un script, en un DAG o en un contenedor.
-
-Lo demás son **capas opcionales**, y hay que pedirlas al instalar:
-
-    pip install sumakit            # solo el SDK
-    pip install "sumakit[eda]"     # profile, stats, plots, exploration
-    pip install "sumakit[all]"     # todo
+El ciclo de un taller, de los datos al entregable:
 
     from sumakit import nb, profile, stats, plots
     nb.setup(seed=42)
@@ -22,33 +9,52 @@ Lo demás son **capas opcionales**, y hay que pedirlas al instalar:
     stats.distribution_report(df)        # asimetría, outliers, escalador sugerido
     fig = plots.correlation_heatmap(df)  # Figure, no un plt.show()
 
-Las funciones de `profile` y `stats` devuelven DataFrames; las de `plots`
-devuelven `Figure`. Nada dibuja por su cuenta ni muta estado global.
+Dos contratos gobiernan todo el paquete, y son lo que hace que una tabla del
+notebook llegue al PDF y a la lámina sin volver a maquetarla:
+
+- **Las funciones de perfilado y diagnóstico devuelven `DataFrame`.** Por eso
+  `profile.styled` y `profile.as_markdown` sirven sobre cualquiera de ellas.
+- **Las de dibujo devuelven `Figure`, y ninguna llama a `plt.show()`.** La misma
+  función sirve en el notebook, en el informe de Quarto, en el deck y en un test.
+
+Nada muta estado global y ninguna función trae paleta propia: todo sale del tema
+activo (`theme`).
+
+**sumakit diagnostica; no transforma ni ajusta.** El preprocesamiento es de
+scikit-learn, porque un transformador ajustado hay que reusarlo sobre test. El
+modelo lo ajustas tú, a la vista, y sumakit describe el resultado.
 """
 
 from __future__ import annotations
 
 import importlib
+from importlib.metadata import PackageNotFoundError, version
 from typing import TYPE_CHECKING, Any
 
-__version__ = "0.1.0"
+try:
+    __version__ = version("sumakit")
+except PackageNotFoundError:  # pragma: no cover - checkout sin instalar
+    # Una sola fuente de verdad: la versión vive en `pyproject.toml`. Escribirla
+    # también aquí es cómo las dos se desincronizan sin que nadie lo note.
+    __version__ = "0.0.0.dev0"
 
 # Los submódulos se cargan al pedirlos, no al importar el paquete.
 #
-# `import sumakit` con carga ansiosa arrastraba matplotlib, seaborn, altair y
-# python-pptx incluso para publicar una tabla. Con PEP 562 el SDK se puede
-# instalar y usar solo, que es lo que lo hace servir en un contenedor.
+# No es por las dependencias —el EDA y el entregable son el núcleo—, es por el
+# arranque: `import sumakit` con carga ansiosa levanta matplotlib, seaborn y
+# python-pptx aunque solo vayas a mirar una tabla. Con PEP 562 cada módulo se
+# paga cuando se usa.
 _LAZY = {
-    "studio": "El puente al proyecto. Solo necesita pandas.",
-    "color": "Aritmética de color. Necesita el extra `eda`.",
-    "theme": "Paletas y estilo de matplotlib. Necesita el extra `eda`.",
-    "nb": "Ajustes de notebook. Necesita el extra `eda`.",
-    "profile": "Perfilado de columnas. Necesita el extra `eda`.",
-    "stats": "Diagnóstico estadístico. Necesita el extra `eda`.",
-    "plots": "Gráficos estáticos. Necesita el extra `eda`.",
-    "exploration": "El EDA de una pasada. Necesita el extra `eda`.",
+    "color": "Aritmética de color.",
+    "theme": "Paletas y estilo de matplotlib.",
+    "nb": "Ajustes de notebook.",
+    "profile": "Perfilado de columnas.",
+    "stats": "Diagnóstico estadístico.",
+    "plots": "Gráficos estáticos.",
+    "exploration": "El EDA de una pasada.",
+    "deck": "El `.pptx` del entregable.",
     "interactive": "Gráficos interactivos. Necesita el extra `interactive`.",
-    "deck": "El `.pptx`. Necesita el extra `report`.",
+    "studio": "El puente a Suma Studio. En stand-by.",
     "destinations": "Suma Studio como `destination` de dlt. Necesita el extra `extract`.",
 }
 
@@ -99,8 +105,15 @@ def __getattr__(name: str) -> Any:
 
 
 def __dir__() -> list[str]:
-    """Para que el autocompletado del notebook siga viendo los submódulos."""
-    return sorted([*_LAZY, "explore", "Exploration", "__version__"])
+    """Todo lo que el paquete ofrece: lo ya cargado y lo que espera perezoso.
+
+    Sin esto `dir(sumakit)` perdía `__doc__` y `__version__`, porque con PEP 562
+    nada es atributo real hasta que se lo pide. Y con `globals()` a secas se iba
+    al otro extremo: `importlib`, `Any` y `TYPE_CHECKING` ensuciando el
+    autocompletado del notebook, que es donde esto se mira.
+    """
+    dunders = {n for n in globals() if n.startswith("__")}
+    return sorted(set(__all__) | set(_LAZY) | dunders)
 
 
 __all__ = [

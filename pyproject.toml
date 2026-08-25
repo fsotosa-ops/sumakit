@@ -1,45 +1,55 @@
 [project]
 name = "sumakit"
-version = "0.1.0"
-description = "Utilidades de EDA y analítica reutilizables: tablas de perfilado, diagnóstico estadístico y gráficos con un tema consistente."
+version = "0.2.0"
+description = "Utilidades para talleres de ciencia de datos: perfilado, diagnóstico estadístico, gráficos con un tema consistente y el entregable."
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
-# El núcleo es el SDK, y el SDK solo necesita DataFrames y la biblioteca
-# estándar. Todo lo demás va en extras: un contenedor que solo publica tablas no
-# tiene por qué cargar matplotlib, y un notebook de EDA no necesita python-pptx.
+# El paquete corre en dos sitios —un notebook local y Colab— y los dos quieren
+# dibujar. Por eso el EDA y el entregable son el núcleo y no un extra: un
+# `pip install sumakit` que no puede hacer un histograma no sirve para nada, y
+# tener que acordarse de `[eda,report]` es una forma de romperse en silencio.
+#
+# Detrás de extras queda solo lo que de verdad es opcional: scikit-learn, que no
+# todo taller necesita, y las piezas de suma-studio, que están en stand-by.
 dependencies = [
     "pandas>=2.0",
-]
-
-[project.optional-dependencies]
-# Perfilado, estadística y gráficos: `profile`, `stats`, `plots`, `exploration`.
-eda = [
     "numpy>=1.24",
     "matplotlib>=3.7",
     "seaborn>=0.13",
-]
-# Gráficos interactivos: `interactive`.
-interactive = ["altair>=6.2.2"]
-# El entregable. **Es el que el ADR-0009 de suma-studio manda retirar**: el
-# render es de Studio. Vive detrás de un extra mientras se retira.
-report = [
     "jinja2>=3.1.6",
     "python-pptx>=1.0.2",
     "pillow>=12.3.0",
     "tabulate>=0.10.0",
+    # `profile.as_markdown` y el render de `exploration` devuelven objetos de
+    # display. En Colab IPython siempre está; en un `pip install` a secas no
+    # estaba, y `as_markdown` moría con ModuleNotFoundError.
+    "ipython>=8.0",
 ]
+
+[project.optional-dependencies]
+# Métricas de modelado: habilita `cluster` y la información mutua de
+# `stats.target_report`.
 ml = ["scikit-learn>=1.3"]
+# Gráficos interactivos: `interactive`.
+interactive = ["altair>=6.2.2"]
+
+# `eda` y `report` se vacían, no se borran: hay notebooks con
+# `pip install "sumakit[eda]"` escrito dentro, y un extra que no existe es un
+# error de instalación. Lo que pedían ya viene en el núcleo.
+eda = []
+report = []
+
+# En stand-by junto con suma-studio. El código se conserva; las dependencias no
+# se instalan salvo que se pidan.
+extract = ["dlt>=1.0"]
 ui = ["streamlit>=1.36"]
+
 all = [
-    "sumakit[eda]",
-    "sumakit[interactive]",
-    "sumakit[report]",
     "sumakit[ml]",
+    "sumakit[interactive]",
+    "sumakit[extract]",
     "sumakit[ui]",
-]
-extract = [
-    "dlt>=1.0",
 ]
 
 [dependency-groups]

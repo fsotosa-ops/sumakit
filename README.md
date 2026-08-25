@@ -2,39 +2,24 @@
 
 [![verificar](https://github.com/fsotosa-ops/sumakit/actions/workflows/verificar.yml/badge.svg)](https://github.com/fsotosa-ops/sumakit/actions/workflows/verificar.yml)
 
-**El SDK de Suma Studio**, con las utilidades de EDA que lo rodean.
+**Utilidades para talleres de ciencia de datos y machine learning.** El ciclo
+completo: perfilar los datos, diagnosticarlos, y salir con un informe y una
+presentación que no parezcan generados por defecto.
 
-## Las capas se instalan por separado
-
-El núcleo es el puente al proyecto y **solo necesita `pandas`**. Sirve igual en
-una celda de Colab, en un script, en un DAG o en un contenedor: no guarda estado
-de módulo ni arrastra librerías de dibujo.
+## Instalación
 
 ```bash
-pip install sumakit             # solo el SDK
-pip install "sumakit[eda]"      # + perfilado, estadística y gráficos
-pip install "sumakit[all]"      # todo
+pip install "sumakit @ git+https://github.com/fsotosa-ops/sumakit.git"
 ```
 
-```python
-from sumakit import studio
+Sirve igual en Colab. **No hace falta pedir extras**: un `pip install sumakit`
+a secas hace el taller completo, y el CI lo comprueba en un entorno donde solo
+está el núcleo. Detrás de extras queda lo que de verdad es opcional:
 
-client = studio.StudioClient("sk_...")  # la clave que da la app
-client.publish(alerts, "alertas")  # un DataFrame → una tabla del proyecto
-```
-
-`connect()` y `publish()` sueltas guardan un cliente por defecto y existen por
-compatibilidad con los notebooks que ya las usan; **la API es el cliente**.
-
-| Extra | Qué trae | Módulos |
-|---|---|---|
-| — | el SDK | `studio` |
-| `eda` | numpy, matplotlib, seaborn | `profile`, `stats`, `plots`, `exploration`, `nb`, `theme`, `color` |
-| `interactive` | altair | `interactive` |
-| `extract` | dlt | `destinations` — Studio como destino de una carga |
-| `report` | jinja2, python-pptx, pillow | `deck`, `report` |
-| `ml` | scikit-learn | sugerencias de modelado |
-| `ui` | streamlit | el configurador de tema |
+| Extra | Qué habilita |
+|---|---|
+| `ml` | scikit-learn — información mutua en `stats.target_report` |
+| `interactive` | altair — el módulo `interactive` |
 
 ## El EDA
 
@@ -43,21 +28,51 @@ from sumakit import nb, profile, stats, plots
 
 nb.setup(seed=42)
 
+profile.alerts(df)  # qué revisar primero, ordenado por severidad
 profile.overview(df)  # tipos, nulos, únicos, ceros, constantes
 stats.distribution_report(df)  # asimetría, outliers y escalador sugerido
 stats.high_correlation_pairs(df)  # colinealidad, sin entrecerrar los ojos
 
-fig = plots.correlation_heatmap(df)  # devuelve Figure
+fig = plots.correlation_heatmap(df)
 fig.savefig("correlaciones.svg")  # sirve en notebook, informe y lámina
 ```
 
-## Tres reglas
+`explore(df)` hace la primera pasada completa en una sola llamada, guiada por
+las alertas: en vez de graficar las 26 columnas, grafica las que tienen algo
+que decir.
 
-1. **Los gráficos devuelven `Figure`; ninguno llama a `plt.show()`.** La misma
-   función sirve en el notebook, en el PDF y en un test.
-2. **Nada muta estado global.** El tema se aplica una vez, o por bloque con
-   `theme.using(...)`.
-3. **Ninguna función trae paleta propia.** Todo sale del tema activo.
+## Dos contratos
+
+Son lo que hace que una tabla del notebook llegue al PDF y a la lámina sin
+volver a maquetarla:
+
+- **Perfilado y diagnóstico devuelven `DataFrame`.** Por eso `profile.styled`
+  (para el notebook) y `profile.as_markdown` (para que la tabla sobreviva al
+  PDF sin salirse del margen) sirven sobre cualquiera de ellas.
+- **Lo que dibuja devuelve `Figure`, y nunca llama a `plt.show()`.** La misma
+  función sirve en el notebook, en Quarto, en el deck y en un test.
+
+Y dos reglas más: **nada muta estado global** —el tema se aplica una vez, o por
+bloque con `theme.using(...)`— y **ninguna función trae paleta propia**: todo
+sale del tema activo.
+
+## Diagnostica; no transforma ni ajusta
+
+El preprocesamiento es de scikit-learn, porque un transformador ajustado hay que
+reusarlo sobre test y ese contrato es suyo. El modelo lo ajustas tú, a la vista,
+y sumakit describe el resultado. En un taller eso importa: lo que se evalúa es
+que sepas aplicar el método, así que la llamada al método tiene que verse.
+
+## El entregable
+
+```python
+from sumakit import deck
+```
+
+`deck` produce el `.pptx`: portada, agenda, hallazgos con título accionable
+—`NonActionableTitleError` si el título no dice nada—, tablas y lámina de cifra.
+Y `sumakit` como comando instala el formato académico de Quarto en cualquier
+proyecto, con el preámbulo de LaTeX que hace que las tablas quepan.
 
 ## Re-skinear por cliente
 
@@ -72,12 +87,8 @@ comparan todos los pares a la vez (scatter, pairplot) admiten un máximo de 3
 series: pasado ese límite `theme.categorical()` levanta un error en vez de
 generar colores indistinguibles.
 
-## Instalación
+## Suma Studio
 
-```bash
-pip install git+https://github.com/<usuario>/sumakit.git      # también en Colab
-pip install "sumakit[ml] @ git+https://github.com/<usuario>/sumakit.git"
-```
-
-`[ml]` agrega scikit-learn, que habilita la información mutua en
-`stats.target_report`.
+`studio` y `destinations` son el puente a [Suma Studio](https://github.com/fsotosa-ops/suma-studio).
+**Están en stand-by**: el código se conserva y las pruebas siguen corriendo, pero
+no es por donde va el paquete hoy. `destinations` pide el extra `extract`.
