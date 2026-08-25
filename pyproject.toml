@@ -38,6 +38,9 @@ all = [
     "sumakit[ml]",
     "sumakit[ui]",
 ]
+extract = [
+    "dlt>=1.0",
+]
 
 [dependency-groups]
 dev = [

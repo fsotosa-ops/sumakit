@@ -31,6 +31,7 @@ compatibilidad con los notebooks que ya las usan; **la API es el cliente**.
 | — | el SDK | `studio` |
 | `eda` | numpy, matplotlib, seaborn | `profile`, `stats`, `plots`, `exploration`, `nb`, `theme`, `color` |
 | `interactive` | altair | `interactive` |
+| `extract` | dlt | `destinations` — Studio como destino de una carga |
 | `report` | jinja2, python-pptx, pillow | `deck`, `report` |
 | `ml` | scikit-learn | sugerencias de modelado |
 | `ui` | streamlit | el configurador de tema |

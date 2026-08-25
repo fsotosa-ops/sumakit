@@ -49,12 +49,14 @@ _LAZY = {
     "exploration": "El EDA de una pasada. Necesita el extra `eda`.",
     "interactive": "Gráficos interactivos. Necesita el extra `interactive`.",
     "deck": "El `.pptx`. Necesita el extra `report`.",
+    "destinations": "Suma Studio como `destination` de dlt. Necesita el extra `extract`.",
 }
 
 if TYPE_CHECKING:  # pragma: no cover - solo para los verificadores de tipos
     from . import (
         color,
         deck,
+        destinations,
         exploration,
         interactive,
         nb,
@@ -106,6 +108,7 @@ __all__ = [
     "__version__",
     "color",
     "deck",
+    "destinations",
     "explore",
     "exploration",
     "interactive",
