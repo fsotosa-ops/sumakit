@@ -1,6 +1,6 @@
 [project]
 name = "sumakit"
-version = "0.2.0"
+version = "0.3.0"
 description = "Utilidades para talleres de ciencia de datos: perfilado, diagnóstico estadístico, gráficos con un tema consistente y el entregable."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -119,7 +119,16 @@ convention = "google"
 [tool.ruff.lint.per-file-ignores]
 # Las pruebas se nombran solas: `test_las_figuras_llegan_al_pdf` ya dice qué
 # hace, y un docstring encima repetiría el nombre.
-"tests/**" = ["D100", "D101", "D102", "D103", "D104"]
+"tests/**" = [
+    "D100",
+    "D101",
+    "D102",
+    "D103",
+    "D104",
+    # `X` para la matriz de features: la convención de scikit-learn, que el
+    # código de `cluster` también respeta.
+    "N806",
+]
 
 # ─────────────────────────────────────────────────────────────────── mypy ────
 #

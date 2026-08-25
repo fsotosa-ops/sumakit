@@ -15,6 +15,7 @@ Tres reglas que gobiernan todo este módulo:
 from __future__ import annotations
 
 import math
+from typing import Any
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -33,6 +34,9 @@ __all__ = [
     "scaling_comparison",
     "missing_matrix",
     "pairs",
+    "elbow",
+    "silhouette",
+    "segments",
 ]
 
 #: Sobre esta cantidad de columnas, un pairplot deja de ser legible.
@@ -437,5 +441,146 @@ def ranking(
     ax.set_title(title)
     ax.grid(axis="y", visible=False)
     ax.grid(axis="x", visible=True)
+    fig.tight_layout()
+    return fig
+
+
+# --- segmentación -----------------------------------------------------------
+#
+# Estas tres consumen lo que produce `cluster`, no los datos crudos. Es
+# deliberado: si el gráfico recalculara la silueta por su cuenta, habría dos
+# fuentes de verdad para el mismo número y el día que difieran nadie sabrá cuál
+# creerle — la tabla del informe o la figura de la lámina.
+
+
+def elbow(k_report: pd.DataFrame, *, title: str = "Cuántos segmentos") -> Figure:
+    """El codo y la silueta, uno al lado del otro, sobre `cluster.k_report`.
+
+    Dos paneles y no dos ejes en la misma figura: superponer una curva que
+    siempre baja (la inercia) con una que tiene máximo (la silueta) obliga a dos
+    escalas verticales, y dos escalas en un mismo marco es la forma más fácil de
+    sugerir una relación que no existe.
+
+    El `k` de mejor silueta queda marcado. La inercia no se marca porque el codo
+    es un juicio visual: señalarlo sería fingir que el cálculo tomó la decisión.
+    """
+    if k_report.empty:
+        return _empty_figure("Sin modelos que comparar")
+
+    pal = theme.active()
+    color = theme.categorical(1)[0]
+    fig, (izq, der) = plt.subplots(1, 2, figsize=(11, 4))
+
+    izq.plot(k_report.index, k_report["inertia"], marker="o", color=color)
+    izq.set_ylabel("inercia")
+    izq.set_title("Codo", loc="left")
+
+    der.plot(k_report.index, k_report["silhouette"], marker="o", color=color)
+    der.set_ylabel("silueta")
+    der.set_title("Silueta", loc="left")
+
+    silueta = k_report["silhouette"]
+    if silueta.notna().any():
+        mejor = silueta.idxmax()
+        der.axvline(mejor, color=pal.text_secondary, linestyle="--", linewidth=1, zorder=0)
+        der.annotate(
+            f"k = {mejor}",
+            (mejor, silueta.loc[mejor]),
+            textcoords="offset points",
+            xytext=(6, -12),
+            color=pal.text_secondary,
+            fontsize=9,
+        )
+
+    for ax in (izq, der):
+        ax.set_xlabel("k")
+        ax.set_xticks(list(k_report.index))
+
+    fig.suptitle(title, x=0.02, ha="left")
+    fig.tight_layout()
+    return fig
+
+
+# `X` en mayúscula viola N803 a propósito: es la convención de scikit-learn.
+def silhouette(
+    X: Any,  # noqa: N803
+    labels: Any,
+    *,
+    title: str = "Silueta por observación",
+) -> Figure:
+    """La silueta de cada fila, agrupada por cluster y ordenada dentro de cada uno.
+
+    El promedio que devuelve `k_report` esconde la forma: dos segmentaciones con
+    la misma silueta media pueden ser una con todos los grupos decentes y otra
+    con dos excelentes y uno entero por debajo de cero. Aquí eso se ve, y un
+    grupo que cruza la línea del cero es un grupo que no existe.
+    """
+    try:
+        from sklearn.metrics import silhouette_samples
+    except ImportError as error:  # pragma: no cover - depende del entorno
+        raise ModuleNotFoundError(
+            "plots.silhouette necesita scikit-learn. Instálalo con: pip install 'sumakit[ml]'"
+        ) from error
+
+    etiquetas = np.asarray(labels)
+    grupos = list(pd.unique(etiquetas))
+    if len(grupos) < 2:
+        return _empty_figure("La silueta necesita al menos 2 grupos")
+
+    valores = silhouette_samples(X, etiquetas)
+    pal = theme.active()
+    colores = theme.categorical(len(grupos))
+
+    fig, ax = plt.subplots(figsize=(8, max(3.0, 0.45 * len(valores) / 10)))
+    y = 0
+    for grupo, color in zip(grupos, colores, strict=True):
+        propios = np.sort(valores[etiquetas == grupo])
+        ax.fill_betweenx(np.arange(y, y + len(propios)), 0, propios, color=color, linewidth=0)
+        ax.text(-0.05, y + len(propios) / 2, str(grupo), ha="right", va="center", fontsize=9)
+        y += len(propios) + 10
+
+    ax.axvline(valores.mean(), color=pal.text_secondary, linestyle="--", linewidth=1)
+    ax.set_xlabel("coeficiente de silueta")
+    ax.set_yticks([])
+    ax.set_title(title, loc="left")
+    ax.grid(False, axis="y")
+    fig.tight_layout()
+    return fig
+
+
+def segments(segments_table: pd.DataFrame, *, title: str = "Perfil de cada segmento") -> Figure:
+    """Mapa de calor de `cluster.segments`: qué variable define a cada grupo.
+
+    Escala divergente con el centro en cero, por el mismo motivo que la matriz de
+    correlación: `z` tiene polaridad. "Muy por encima del promedio" y "muy por
+    debajo" son cosas opuestas, no dos puntos de una rampa.
+    """
+    if segments_table.empty:
+        return _empty_figure("Sin segmentos que perfilar")
+
+    matriz = segments_table.pivot(index="cluster", columns="feature", values="z")
+    limite = float(np.abs(matriz.to_numpy()).max()) or 1.0
+
+    alto = max(2.5, 0.5 * matriz.shape[0] + 1.5)
+    ancho = max(6.0, 0.9 * matriz.shape[1] + 2.0)
+    fig, ax = plt.subplots(figsize=(ancho, alto))
+    sns.heatmap(
+        matriz,
+        cmap=theme.diverging_cmap(),
+        vmin=-limite,
+        vmax=limite,
+        center=0,
+        annot=True,
+        fmt=".1f",
+        annot_kws={"size": 8},
+        linewidths=2,
+        linecolor=theme.active().surface,
+        cbar_kws={"shrink": 0.6, "label": "desviaciones del promedio"},
+        ax=ax,
+    )
+    ax.set_title(title, loc="left")
+    ax.set_xlabel("")
+    ax.set_ylabel("")
+    ax.grid(False)
     fig.tight_layout()
     return fig

@@ -18,7 +18,7 @@ está el núcleo. Detrás de extras queda lo que de verdad es opcional:
 
 | Extra | Qué habilita |
 |---|---|
-| `ml` | scikit-learn — información mutua en `stats.target_report` |
+| `ml` | scikit-learn — el módulo `cluster` y la información mutua de `stats.target_report` |
 | `interactive` | altair — el módulo `interactive` |
 
 ## El EDA
@@ -55,6 +55,30 @@ volver a maquetarla:
 Y dos reglas más: **nada muta estado global** —el tema se aplica una vez, o por
 bloque con `theme.using(...)`— y **ninguna función trae paleta propia**: todo
 sale del tema activo.
+
+## La segmentación
+
+```python
+from sklearn.cluster import KMeans
+from sumakit import cluster, plots, profile
+
+modelos = {k: KMeans(n_clusters=k, random_state=42, n_init=10).fit(X) for k in range(2, 9)}
+
+profile.styled(cluster.k_report(X, modelos))  # ¿cuál k? cuatro métricas, no una curva
+plots.elbow(cluster.k_report(X, modelos))
+
+etiquetas = modelos[4].labels_
+cluster.sizes(etiquetas)  # ¿hay un grupo que se come todo?
+profile.styled(cluster.segments(df, etiquetas))  # ¿qué es cada segmento?
+cluster.distinctive(df, etiquetas, top=3)  # lo que cabe en el título de una lámina
+```
+
+`segments` es la que llega a la presentación: un cluster sin una frase que lo
+describa no es un segmento, es un número. Mide la desviación de cada grupo
+respecto al promedio **en desviaciones estándar**, para que un monto en pesos y
+una antigüedad en meses se puedan comparar en la misma tabla.
+
+Necesita el extra `ml`.
 
 ## Diagnostica; no transforma ni ajusta
 

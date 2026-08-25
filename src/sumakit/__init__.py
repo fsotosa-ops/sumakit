@@ -50,6 +50,7 @@ _LAZY = {
     "nb": "Ajustes de notebook.",
     "profile": "Perfilado de columnas.",
     "stats": "Diagnóstico estadístico.",
+    "cluster": "Diagnóstico de segmentación. Necesita el extra `ml`.",
     "plots": "Gráficos estáticos.",
     "exploration": "El EDA de una pasada.",
     "deck": "El `.pptx` del entregable.",
@@ -60,6 +61,7 @@ _LAZY = {
 
 if TYPE_CHECKING:  # pragma: no cover - solo para los verificadores de tipos
     from . import (
+        cluster,
         color,
         deck,
         destinations,
@@ -119,6 +121,7 @@ def __dir__() -> list[str]:
 __all__ = [
     "Exploration",
     "__version__",
+    "cluster",
     "color",
     "deck",
     "destinations",

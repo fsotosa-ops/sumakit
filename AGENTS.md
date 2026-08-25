@@ -33,7 +33,9 @@ Hay dos razones y las dos importan:
   llamada al método tiene que estar en la celda.
 
 Corolario para funciones nuevas de modelado: reciben `labels` o modelos ya
-entrenados; el bucle que los entrena vive en el notebook.
+entrenados; el bucle que los entrena vive en el notebook. `cluster` es el
+primero que sigue esa forma —`k_report(X, models)`, `segments(df, labels)`— y
+`evaluate` deberá seguirla igual.
 
 ## Dos contratos, y son lo que sostiene el entregable
 

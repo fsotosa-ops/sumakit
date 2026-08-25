@@ -75,12 +75,19 @@ class Exploration:
         Emitiéndolas como salidas separadas, cada figura lleva su
         representación `image/png` y sobrevive a los tres formatos. Como están
         cerradas del registro de pyplot, tampoco se duplican.
+
+        **Los títulos van en markdown y no en HTML**, y eso tampoco es cosmético:
+        una figura emitida inmediatamente después de un bloque de HTML crudo
+        desaparece del `.pptx`. El writer de PowerPoint descarta el HTML y se
+        lleva la figura por delante. Un `###` lo entiende Pandoc de forma nativa
+        y además se convierte en el título de la lámina, que es lo que uno
+        quería escribiendo un encabezado.
         """
-        from IPython.display import HTML, display
+        from IPython.display import HTML, Markdown, display
 
         display(HTML(self._tablas_html()))
         for nombre, fig in self.figures.items():
-            display(HTML(f"<h3 style='margin:1.2em 0 0.3em'>{nombre.capitalize()}</h3>"))
+            display(Markdown(f"### {nombre.capitalize()}"))
             display(fig)
 
 
